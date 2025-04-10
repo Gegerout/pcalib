@@ -6,6 +6,7 @@ add_library(pca_lib SHARED
         cpp/centering.cpp
         cpp/matrix_ops.cpp
         cpp/covariance.cpp
+        cpp/eigenvalues.cpp
 )
 
 if(MSVC)

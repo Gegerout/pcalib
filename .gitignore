@@ -1,6 +1,9 @@
 /cmake-build-debug
+/build
 /.venv
 /.idea
 cmake-build-debug/
+build/
 .idea
 .venv
+.DS_Store

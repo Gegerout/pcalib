@@ -134,3 +134,44 @@ def covariance_matrix(matrix: Matrix) -> Matrix:
         result.append(row)
 
     return Matrix(result)
+
+# Привязка функции find_eigenvalues
+pca_lib.find_eigenvalues.argtypes = [
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_double
+]
+pca_lib.find_eigenvalues.restype = ctypes.POINTER(ctypes.c_double)
+
+def find_eigenvalues(C: Matrix, tol: float = 1e-6) -> List[float]:
+    """
+    Находит собственные значения матрицы методом бисекции.
+    
+    Вход:
+    C: матрица ковариаций (m×m)
+    tol: допустимая погрешность
+    
+    Выход: список вещественных собственных значений
+    """
+    if C.n != C.m:
+        raise ValueError("Матрица должна быть квадратной")
+    
+    dense = C.data
+    m = C.m
+    flat_C = []
+    
+    for row in dense:
+        flat_C.extend(row)
+    
+    ArrayCType = ctypes.c_double * (m * m)
+    C_ctypes = ArrayCType(*flat_C)
+    
+    # Вызываем C++ функцию
+    result_ptr = pca_lib.find_eigenvalues(C_ctypes, m, tol)
+    
+    # Преобразуем результат в список Python
+    result = []
+    for i in range(m):
+        result.append(result_ptr[i])
+    
+    return result

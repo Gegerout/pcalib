@@ -1,4 +1,4 @@
-from pcalib import Matrix, gauss_solver, center_data, covariance_matrix
+from pcalib import Matrix, gauss_solver, center_data, covariance_matrix, find_eigenvalues
 
 def main():
     A = [
@@ -29,6 +29,13 @@ def main():
     print("Матрица ковариаций:")
     for row in cov_mat.data:
         print(row)
+
+    eigenvalues = find_eigenvalues(mat2, tol=1e-8)
+
+    print("Собственные значения:")
+    for val in eigenvalues:
+        print(val)
+
 
 if __name__ == "__main__":
     main()
