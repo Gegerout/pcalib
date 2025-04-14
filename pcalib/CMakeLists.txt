@@ -7,6 +7,7 @@ add_library(pca_lib SHARED
         cpp/matrix_ops.cpp
         cpp/covariance.cpp
         cpp/eigenvalues.cpp
+        cpp/eigenvectors.cpp
 )
 
 if(MSVC)

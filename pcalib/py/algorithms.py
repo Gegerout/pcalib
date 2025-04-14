@@ -16,7 +16,6 @@ lib_path = os.path.join(current_dir, 'libpca_lib' + lib_ext)
 
 pca_lib = ctypes.CDLL(lib_path)
 
-# Привязка функции gauss_solver
 pca_lib.gauss_solver.argtypes = [
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
@@ -135,7 +134,6 @@ def covariance_matrix(matrix: Matrix) -> Matrix:
 
     return Matrix(result)
 
-# Привязка функции find_eigenvalues
 pca_lib.find_eigenvalues.argtypes = [
     ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
@@ -166,12 +164,54 @@ def find_eigenvalues(C: Matrix, tol: float = 1e-6) -> List[float]:
     ArrayCType = ctypes.c_double * (m * m)
     C_ctypes = ArrayCType(*flat_C)
     
-    # Вызываем C++ функцию
     result_ptr = pca_lib.find_eigenvalues(C_ctypes, m, tol)
     
-    # Преобразуем результат в список Python
     result = []
     for i in range(m):
         result.append(result_ptr[i])
+    
+    return result
+
+pca_lib.find_eigenvectors.argtypes = [
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_int
+]
+pca_lib.find_eigenvectors.restype = ctypes.POINTER(ctypes.c_double)
+
+def find_eigenvectors(C: Matrix, eigenvalues: List[float]) -> List[Matrix]:
+    """
+    Находит собственные векторы матрицы C для заданных собственных значений.
+    
+    Вход:
+    C: матрица ковариаций (m×m)
+    eigenvalues: список собственных значений
+    
+    Выход: список собственных векторов (каждый вектор - объект Matrix)
+    """
+    if C.n != C.m:
+        raise ValueError("Матрица должна быть квадратной")
+    
+    dense = C.data
+    m = C.m
+    n_eigenvalues = len(eigenvalues)
+    
+    flat_C = []
+    for row in dense:
+        flat_C.extend(row)
+    
+    ArrayCType = ctypes.c_double * (m * m)
+    C_ctypes = ArrayCType(*flat_C)
+    
+    ArrayEigenvaluesType = ctypes.c_double * n_eigenvalues
+    eigenvalues_ctypes = ArrayEigenvaluesType(*eigenvalues)
+    
+    result_ptr = pca_lib.find_eigenvectors(C_ctypes, eigenvalues_ctypes, m, n_eigenvalues)
+    
+    result = []
+    for i in range(n_eigenvalues):
+        vector_data = [[result_ptr[i * m + j]] for j in range(m)]
+        result.append(Matrix(vector_data))
     
     return result
