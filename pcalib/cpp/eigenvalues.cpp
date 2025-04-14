@@ -1,32 +1,29 @@
 #include "eigenvalues.h"
-#include "matrix_ops.h"   // Используется для обмена строк, если потребуется в дальнейших доработках
+#include "matrix_ops.h"
 #include <vector>
 #include <cmath>
 #include <algorithm>
 #include <limits>
 #include <stdexcept>
-#include <cstdlib>        // Для std::abs (при необходимости)
+#include <cstdlib>
 
-// Вспомогательная функция для вычисления детерминанта квадратной матрицы методом Гаусса.
-// Предназначена для малых размеров (подматриц ведущих миноров).
 static double determinant(const std::vector<std::vector<double>>& A) {
     int n = A.size();
     if(n == 0 || A[0].size() != n)
         throw std::invalid_argument("Матрица должна быть квадратной");
     
-    std::vector<std::vector<double>> mat = A; // копия матрицы
+    std::vector<std::vector<double>> mat = A;
     double det = 1.0;
     const double eps = 1e-12;
     
     for (int i = 0; i < n; i++) {
-        // Поиск опорного элемента
         int pivot = i;
         for (int j = i; j < n; j++) {
             if (std::abs(mat[j][i]) > std::abs(mat[pivot][i]))
                 pivot = j;
         }
         if (std::abs(mat[pivot][i]) < eps)
-            return 0.0; // матрица вырождена
+            return 0.0; 
         
         if (pivot != i) {
             std::swap(mat[i], mat[pivot]);
@@ -44,10 +41,8 @@ static double determinant(const std::vector<std::vector<double>>& A) {
     return det;
 }
 
-// Все внутренние функции помещены в безымянное пространство имён для локальности.
 namespace {
 
-    // Вычисляет детерминант ведущей главной подматрицы размера k x k матрицы (C - lambda I)
     double submatrix_determinant(const std::vector<std::vector<double>>& C, double lambda, int k) {
         std::vector<std::vector<double>> sub(k, std::vector<double>(k, 0.0));
         for (int i = 0; i < k; i++) {
@@ -60,16 +55,10 @@ namespace {
         return determinant(sub);
     }
 
-    // Возвращает знак x с учётом порогового значения tol_sign:
-    // если x > tol_sign, то +1, иначе (включая ноль) -1.
     int sign_val(double x, double tol_sign = 1e-12) {
         return (x > tol_sign) ? 1 : -1;
     }
 
-    // По числу изменений знака в последовательности детерминантов ведущих главных миноров
-    // матрицы (C - lambda I) определяется число собственных значений, меньших lambda.
-    // Согласно теореме Стурма это число равно количеству изменений знака в последовательности:
-    // p0 = 1, p1, p2, …, pn, где p_i — детерминант i x i подматрицы.
     int count_eigenvalues_less_than(const std::vector<std::vector<double>>& C, double lambda) {
         int n = C.size();
         int sign_changes = 0;
@@ -85,7 +74,6 @@ namespace {
         return sign_changes;
     }
 
-    // Определяет границы собственных значений с помощью теоремы Гершгорина.
     std::pair<double, double> find_eigenvalue_bounds(const std::vector<std::vector<double>>& C) {
         int n = C.size();
         double min_bound = std::numeric_limits<double>::infinity();
@@ -106,14 +94,10 @@ namespace {
         return {min_bound - margin, max_bound + margin};
     }
 
-} // end anonymous namespace
+} 
 
 namespace Eigenvalues {
 
-    // Основная функция поиска собственных значений.
-    // Для каждого собственного числа (в порядке возрастания) осуществляется двоичный поиск по интервалу,
-    // в котором число собственных значений, меньших mid, равно целевому индексу.
-    // Результат сортируется по убыванию.
     std::vector<double> find_eigenvalues(const std::vector<std::vector<double>>& C, double tol) {
         int n = C.size();
         if (n == 0 || C[0].size() != static_cast<size_t>(n))
@@ -125,7 +109,6 @@ namespace Eigenvalues {
 
         std::vector<double> eigenvalues_asc(n, 0.0);
 
-        // Ищем i-е собственное значение (индекс j от 1 до n — по возрастанию).
         for (int j = 1; j <= n; j++) {
             double left = lower_bound;
             double right = upper_bound;
@@ -143,7 +126,7 @@ namespace Eigenvalues {
         return eigenvalues_asc;
     }
 
-} // namespace Eigenvalues
+}
 
 extern "C" {
 
