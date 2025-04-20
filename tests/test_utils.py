@@ -1,0 +1,37 @@
+import unittest
+import math
+from pcalib.py.algorithms import Matrix, handle_missing_values, add_noise_and_compare, accuracy_score_manual, \
+    mean_by_column
+
+
+class TestUtils(unittest.TestCase):
+    def test_handle_missing_values(self):
+        X = Matrix([[1, math.nan], [3, 4]])
+        X_filled = handle_missing_values(X)
+
+        self.assertAlmostEqual(X_filled.data[0][1], 4.0)
+
+    def test_accuracy_score_manual(self):
+        y_true = [1, 2, 3]
+        y_pred = [1, 2, 2]
+        acc = accuracy_score_manual(y_true, y_pred)
+
+        self.assertAlmostEqual(acc, 2 / 3)
+
+    def test_mean_by_column(self):
+        X = Matrix([[1, 2], [3, 4]])
+        means = mean_by_column(X)
+
+        self.assertEqual(means, [2, 3])
+
+    def test_add_noise_and_compare(self):
+        X = Matrix([[1, 2], [3, 4], [5, 6]])
+        result = add_noise_and_compare(X, noise_level=0.5)
+        before = result['X_proj'].data
+        after = result['X_proj_noisy'].data
+
+        self.assertNotEqual(before, after)
+
+
+if __name__ == '__main__':
+    unittest.main()

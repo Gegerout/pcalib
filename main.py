@@ -1,5 +1,8 @@
-from pcalib import Matrix, gauss_solver, center_data, covariance_matrix, find_eigenvalues, find_eigenvectors, explained_variance_ratio, pca, plot_pca_projection, reconstruction_error, reconstruct_from_pca, auto_select_k, handle_missing_values, add_noise_and_compare, apply_pca_to_dataset
+from pcalib import Matrix, gauss_solver, center_data, covariance_matrix, find_eigenvalues, find_eigenvectors, \
+    explained_variance_ratio, pca, plot_pca_projection, reconstruction_error, reconstruct_from_pca, auto_select_k, \
+    handle_missing_values, add_noise_and_compare, apply_pca_to_dataset
 import os
+
 
 def verify_eigenvector(C: Matrix, v: Matrix, lambda_val: float, tol: float = 1e-6) -> bool:
     """
@@ -16,8 +19,9 @@ def verify_eigenvector(C: Matrix, v: Matrix, lambda_val: float, tol: float = 1e-
             else:
                 val += C.data[i][j] * v.data[j][0]
         result.append(abs(val))
-    
+
     return all(x < tol for x in result)
+
 
 def main():
     A = [
@@ -53,23 +57,23 @@ def main():
     print("Собственные значения:")
     for val in eigenvalues:
         print(val)
-    
+
     # Вычисление доли объяснённой дисперсии для первых k компонент
-    for k in range(1, len(eigenvalues)+1):
+    for k in range(1, len(eigenvalues) + 1):
         gamma = explained_variance_ratio(eigenvalues, k)
         print(f"Доля объяснённой дисперсии для первых {k} компонент: {gamma:.6f}")
-        
+
     eigenvectors = find_eigenvectors(cov_mat, eigenvalues)
     print("Собственные векторы:")
     for i, vec in enumerate(eigenvectors):
-        print(f"Вектор {i+1}:")
+        print(f"Вектор {i + 1}:")
         for row in vec.data:
             print(row)
-            
+
     print("\nПроверка собственных векторов:")
     for i, (vec, val) in enumerate(zip(eigenvectors, eigenvalues)):
         is_valid = verify_eigenvector(cov_mat, vec, val)
-        print(f"Вектор {i+1} {'является' if is_valid else 'не является'} собственным вектором")
+        print(f"Вектор {i + 1} {'является' if is_valid else 'не является'} собственным вектором")
 
         print("\n=== Проверка на другой матрице ===")
 
@@ -96,7 +100,7 @@ def main():
     for val in eigenvalues2:
         print(val)
 
-    for k in range(1, len(eigenvalues2)+1):
+    for k in range(1, len(eigenvalues2) + 1):
         gamma = explained_variance_ratio(eigenvalues2, k)
         print(f"Доля объяснённой дисперсии для первых {k} компонент: {gamma:.6f}")
 

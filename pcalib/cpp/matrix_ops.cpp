@@ -3,14 +3,13 @@
 #include <stdexcept>
 
 namespace MatrixOps {
-
-    std::vector<std::vector<double>> add(const std::vector<std::vector<double>>& A,
-                                           const std::vector<std::vector<double>>& B) {
+    std::vector<std::vector<double> > add(const std::vector<std::vector<double> > &A,
+                                          const std::vector<std::vector<double> > &B) {
         if (A.size() != B.size() || (A.size() > 0 && A[0].size() != B[0].size())) {
             throw std::invalid_argument("Размеры матриц должны совпадать для сложения.");
         }
 
-        std::vector<std::vector<double>> result = A;
+        std::vector<std::vector<double> > result = A;
         for (size_t i = 0; i < A.size(); i++) {
             for (size_t j = 0; j < A[i].size(); j++) {
                 result[i][j] += B[i][j];
@@ -19,7 +18,7 @@ namespace MatrixOps {
         return result;
     }
 
-    void scaleRow(std::vector<std::vector<double>>& matrix, int rowIndex, double factor) {
+    void scaleRow(std::vector<std::vector<double> > &matrix, int rowIndex, double factor) {
         if (rowIndex < 0 || rowIndex >= static_cast<int>(matrix.size())) {
             throw std::out_of_range("Индекс строки вне допустимого диапазона.");
         }
@@ -28,7 +27,7 @@ namespace MatrixOps {
         }
     }
 
-    void addRows(std::vector<std::vector<double>>& matrix, int targetRow, int sourceRow, double factor) {
+    void addRows(std::vector<std::vector<double> > &matrix, int targetRow, int sourceRow, double factor) {
         if (targetRow < 0 || targetRow >= static_cast<int>(matrix.size()) ||
             sourceRow < 0 || sourceRow >= static_cast<int>(matrix.size())) {
             throw std::out_of_range("Индекс строки вне допустимого диапазона.");
@@ -41,7 +40,7 @@ namespace MatrixOps {
         }
     }
 
-    void swapRows(std::vector<std::vector<double>>& matrix, int row1, int row2) {
+    void swapRows(std::vector<std::vector<double> > &matrix, int row1, int row2) {
         if (row1 < 0 || row1 >= static_cast<int>(matrix.size()) ||
             row2 < 0 || row2 >= static_cast<int>(matrix.size())) {
             throw std::out_of_range("Индекс строки вне допустимого диапазона.");
@@ -49,8 +48,8 @@ namespace MatrixOps {
         std::swap(matrix[row1], matrix[row2]);
     }
 
-    std::vector<std::vector<double>> multiply(const std::vector<std::vector<double>>& A,
-                                                const std::vector<std::vector<double>>& B) {
+    std::vector<std::vector<double> > multiply(const std::vector<std::vector<double> > &A,
+                                               const std::vector<std::vector<double> > &B) {
         if (A.empty() || B.empty() || A[0].size() != B.size()) {
             throw std::invalid_argument("Неверные размеры матриц для перемножения.");
         }
@@ -58,7 +57,7 @@ namespace MatrixOps {
         int p = A[0].size();
         int m = B[0].size();
 
-        std::vector<std::vector<double>> result(n, std::vector<double>(m, 0.0));
+        std::vector<std::vector<double> > result(n, std::vector<double>(m, 0.0));
         for (int i = 0; i < n; i++) {
             for (int k = 0; k < p; k++) {
                 for (int j = 0; j < m; j++) {
@@ -69,11 +68,11 @@ namespace MatrixOps {
         return result;
     }
 
-    std::vector<std::vector<double>> transpose(const std::vector<std::vector<double>>& A) {
+    std::vector<std::vector<double> > transpose(const std::vector<std::vector<double> > &A) {
         if (A.empty()) return {};
         int n = A.size();
         int m = A[0].size();
-        std::vector<std::vector<double>> result(m, std::vector<double>(n, 0.0));
+        std::vector<std::vector<double> > result(m, std::vector<double>(n, 0.0));
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < m; j++) {
                 result[j][i] = A[i][j];
@@ -81,5 +80,4 @@ namespace MatrixOps {
         }
         return result;
     }
-
 }

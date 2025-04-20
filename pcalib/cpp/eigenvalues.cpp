@@ -1,5 +1,4 @@
 #include "eigenvalues.h"
-#include "matrix_ops.h"
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -7,15 +6,15 @@
 #include <stdexcept>
 #include <cstdlib>
 
-static double determinant(const std::vector<std::vector<double>>& A) {
+static double determinant(const std::vector<std::vector<double> > &A) {
     int n = A.size();
-    if(n == 0 || A[0].size() != n)
+    if (n == 0 || A[0].size() != n)
         throw std::invalid_argument("Матрица должна быть квадратной");
-    
-    std::vector<std::vector<double>> mat = A;
+
+    std::vector<std::vector<double> > mat = A;
     double det = 1.0;
     const double eps = 1e-12;
-    
+
     for (int i = 0; i < n; i++) {
         int pivot = i;
         for (int j = i; j < n; j++) {
@@ -23,8 +22,8 @@ static double determinant(const std::vector<std::vector<double>>& A) {
                 pivot = j;
         }
         if (std::abs(mat[pivot][i]) < eps)
-            return 0.0; 
-        
+            return 0.0;
+
         if (pivot != i) {
             std::swap(mat[i], mat[pivot]);
             det *= -1.0;
@@ -42,9 +41,8 @@ static double determinant(const std::vector<std::vector<double>>& A) {
 }
 
 namespace {
-
-    double submatrix_determinant(const std::vector<std::vector<double>>& C, double lambda, int k) {
-        std::vector<std::vector<double>> sub(k, std::vector<double>(k, 0.0));
+    double submatrix_determinant(const std::vector<std::vector<double> > &C, double lambda, int k) {
+        std::vector<std::vector<double> > sub(k, std::vector<double>(k, 0.0));
         for (int i = 0; i < k; i++) {
             for (int j = 0; j < k; j++) {
                 sub[i][j] = C[i][j];
@@ -59,7 +57,7 @@ namespace {
         return (x > tol_sign) ? 1 : -1;
     }
 
-    int count_eigenvalues_less_than(const std::vector<std::vector<double>>& C, double lambda) {
+    int count_eigenvalues_less_than(const std::vector<std::vector<double> > &C, double lambda) {
         int n = C.size();
         int sign_changes = 0;
         int prev_sign = 1; // p0 считается положительным
@@ -74,11 +72,11 @@ namespace {
         return sign_changes;
     }
 
-    std::pair<double, double> find_eigenvalue_bounds(const std::vector<std::vector<double>>& C) {
+    std::pair<double, double> find_eigenvalue_bounds(const std::vector<std::vector<double> > &C) {
         int n = C.size();
         double min_bound = std::numeric_limits<double>::infinity();
         double max_bound = -std::numeric_limits<double>::infinity();
-        
+
         for (int i = 0; i < n; i++) {
             double row_sum = 0.0;
             for (int j = 0; j < n; j++) {
@@ -93,12 +91,10 @@ namespace {
         double margin = 0.1 * (max_bound - min_bound);
         return {min_bound - margin, max_bound + margin};
     }
-
-} 
+}
 
 namespace Eigenvalues {
-
-    std::vector<double> find_eigenvalues(const std::vector<std::vector<double>>& C, double tol) {
+    std::vector<double> find_eigenvalues(const std::vector<std::vector<double> > &C, double tol) {
         int n = C.size();
         if (n == 0 || C[0].size() != static_cast<size_t>(n))
             throw std::invalid_argument("Матрица должна быть квадратной");
@@ -125,22 +121,20 @@ namespace Eigenvalues {
         std::sort(eigenvalues_asc.begin(), eigenvalues_asc.end(), std::greater<double>());
         return eigenvalues_asc;
     }
-
 }
 
 extern "C" {
-
-    double* find_eigenvalues(double* C, int m, double tol) {
-        std::vector<std::vector<double>> matrix(m, std::vector<double>(m, 0.0));
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < m; j++) {
-                matrix[i][j] = C[i * m + j];
-            }
+double *find_eigenvalues(double *C, int m, double tol) {
+    std::vector<std::vector<double> > matrix(m, std::vector<double>(m, 0.0));
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < m; j++) {
+            matrix[i][j] = C[i * m + j];
         }
-        std::vector<double> eigen = Eigenvalues::find_eigenvalues(matrix, tol);
-        double* result = new double[m];
-        for (int i = 0; i < m; i++)
-            result[i] = eigen[i];
-        return result;
     }
+    std::vector<double> eigen = Eigenvalues::find_eigenvalues(matrix, tol);
+    double *result = new double[m];
+    for (int i = 0; i < m; i++)
+        result[i] = eigen[i];
+    return result;
+}
 }

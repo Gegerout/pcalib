@@ -6,7 +6,6 @@
 #include <stdexcept>
 
 namespace Eigenvalues {
-
     /**
      * @brief Находит собственные значения матрицы C.
      * 
@@ -14,11 +13,10 @@ namespace Eigenvalues {
      * @param tol Допустимая погрешность для определения сходимости.
      * @return std::vector<double> Список собственных значений.
      */
-    std::vector<double> find_eigenvalues(const std::vector<std::vector<double>>& C, double tol);
+    std::vector<double> find_eigenvalues(const std::vector<std::vector<double> > &C, double tol);
 }
 
 extern "C" {
-
 /**
  * @brief Находит собственные значения матрицы C.
  * 
@@ -28,8 +26,7 @@ extern "C" {
  * @return double* Указатель на массив собственных значений.
  *                 Вызывающий код должен освободить память с помощью delete[].
  */
-double* find_eigenvalues(double* C, int m, double tol);
-
+double *find_eigenvalues(double *C, int m, double tol);
 }
 
 #endif // EIGENVALUES_H

@@ -2,11 +2,8 @@
 #define EIGENVECTORS_H
 
 #include <vector>
-#include <utility>
-#include <stdexcept>
 
 namespace Eigenvectors {
-
     /**
      * @brief Находит собственные векторы матрицы C для заданных собственных значений.
      * 
@@ -14,9 +11,9 @@ namespace Eigenvectors {
      * @param eigenvalues Список собственных значений.
      * @return std::vector<std::vector<double>> Список собственных векторов.
      */
-    std::vector<std::vector<double>> find_eigenvectors(
-        const std::vector<std::vector<double>>& C, 
-        const std::vector<double>& eigenvalues);
+    std::vector<std::vector<double> > find_eigenvectors(
+        const std::vector<std::vector<double> > &C,
+        const std::vector<double> &eigenvalues);
 
     /**
      * @brief Решает систему уравнений (C-λI)v = 0 для заданного собственного значения λ.
@@ -26,7 +23,7 @@ namespace Eigenvectors {
      * @return std::vector<double> Собственный вектор.
      */
     std::vector<double> solve_eigenvector_equation(
-        const std::vector<std::vector<double>>& C, 
+        const std::vector<std::vector<double> > &C,
         double lambda);
 
     /**
@@ -36,8 +33,8 @@ namespace Eigenvectors {
      * @param lambda Значение λ.
      * @return std::vector<std::vector<double>> Матрица C-λI.
      */
-    std::vector<std::vector<double>> create_characteristic_matrix(
-        const std::vector<std::vector<double>>& C, 
+    std::vector<std::vector<double> > create_characteristic_matrix(
+        const std::vector<std::vector<double> > &C,
         double lambda);
 
     /**
@@ -46,11 +43,10 @@ namespace Eigenvectors {
      * @param v Вектор для нормализации.
      * @return std::vector<double> Нормализованный вектор.
      */
-    std::vector<double> normalize_vector(const std::vector<double>& v);
+    std::vector<double> normalize_vector(const std::vector<double> &v);
 }
 
 extern "C" {
-
 /**
  * @brief Находит собственные векторы матрицы C для заданных собственных значений.
  * 
@@ -61,8 +57,7 @@ extern "C" {
  * @return double* Указатель на массив собственных векторов (размера m * n_eigenvalues).
  *                 Вызывающий код должен освободить память с помощью delete[].
  */
-double* find_eigenvectors(double* C, double* eigenvalues, int m, int n_eigenvalues);
-
+double *find_eigenvectors(double *C, double *eigenvalues, int m, int n_eigenvalues);
 }
 
 #endif // EIGENVECTORS_H

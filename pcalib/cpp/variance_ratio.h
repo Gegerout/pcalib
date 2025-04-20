@@ -4,16 +4,14 @@
 #include <vector>
 
 namespace VarianceRatio {
-
-/**
- * @brief Вычисляет долю объяснённой дисперсии.
- * 
- * @param eigenvalues Вектор собственных значений (размер m).
- * @param k Число компонент (k <= m).
- * @return double Доля объяснённой дисперсии.
- */
-double explained_variance_ratio(const std::vector<double>& eigenvalues, int k);
-
+    /**
+     * @brief Вычисляет долю объяснённой дисперсии.
+     *
+     * @param eigenvalues Вектор собственных значений (размер m).
+     * @param k Число компонент (k <= m).
+     * @return double Доля объяснённой дисперсии.
+     */
+    double explained_variance_ratio(const std::vector<double> &eigenvalues, int k);
 }
 
 extern "C" {
@@ -25,7 +23,7 @@ extern "C" {
  * @param k Число компонент.
  * @return double Доля объяснённой дисперсии.
  */
-double explained_variance_ratio(double* eigenvalues, int m, int k);
+double explained_variance_ratio(double *eigenvalues, int m, int k);
 }
 
 #endif // VARIANCE_RATIO_H
