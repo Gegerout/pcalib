@@ -1,11 +1,8 @@
 from pcalib import apply_pca_and_visualize
-import os
 from sklearn.datasets import load_iris, load_wine
 
 
 def main():
-    os.makedirs('results', exist_ok=True)
-
     # IRIS
     iris = load_iris()
     print("\n=== PCA на датасете iris ===")
