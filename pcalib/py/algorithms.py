@@ -6,6 +6,7 @@ import random
 from typing import List, Tuple, Optional
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from .matrix import Matrix
 
 # --- C++ библиотека ---
@@ -265,19 +266,20 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
     """
     Визуализирует проекцию данных на первые k главных компонент.
     Если k == 2: обычный scatter plot.
-    Если k > 2: матрица парных scatter plot (pairplot) для первых min(k, 5) компонент.
+    Если k > 2: матрица парных scatter plot (pairplot) для первых min(k, 5) компонент средствами только matplotlib.
     Если k == 1: гистограмма/stripplot по первой компоненте.
     """
-    import numpy as np
     k = X_proj.m
     n = X_proj.n
-    data = np.array(X_proj.data)
+    data = X_proj.data  # data: list of lists, shape n x k
     if k < 1:
         raise ValueError("Для визуализации требуется хотя бы одна компонента (n x k, k >= 1)")
     if k == 1:
         fig, ax = plt.subplots(figsize=(7, 2))
+        x = [row[0] for row in data]
+        y_zeros = [0 for _ in range(n)]
         if y is not None:
-            scatter = ax.scatter(data[:, 0], np.zeros(n), c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
+            scatter = ax.scatter(x, y_zeros, c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
             if class_names is not None:
                 handles = []
                 unique = sorted(set(y))
@@ -292,7 +294,7 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
             else:
                 fig.colorbar(scatter, ax=ax, label='Class')
         else:
-            ax.scatter(data[:, 0], np.zeros(n), c='blue', edgecolor='k', s=50, alpha=0.8)
+            ax.scatter(x, y_zeros, c='blue', edgecolor='k', s=50, alpha=0.8)
         ax.set_xlabel('PC1')
         ax.set_yticks([])
         if title is not None:
@@ -303,12 +305,14 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
         return fig
     elif k == 2:
         fig, ax = plt.subplots(figsize=(7, 5))
+        x = [row[0] for row in data]
+        y2 = [row[1] for row in data]
         if y is not None:
-            y = list(y)
-            scatter = ax.scatter(data[:, 0], data[:, 1], c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
+            y_list = list(y)
+            scatter = ax.scatter(x, y2, c=y_list, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
             if class_names is not None:
                 handles = []
-                unique = sorted(set(y))
+                unique = sorted(set(y_list))
                 for i, cl in enumerate(unique):
                     handles.append(
                         plt.Line2D([], [], marker='o', color='w',
@@ -320,7 +324,7 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
             else:
                 fig.colorbar(scatter, ax=ax, label='Class')
         else:
-            ax.scatter(data[:, 0], data[:, 1], c='blue', edgecolor='k', s=50, alpha=0.8)
+            ax.scatter(x, y2, c='blue', edgecolor='k', s=50, alpha=0.8)
         ax.set_xlabel('PC1')
         ax.set_ylabel('PC2')
         if title is not None:
@@ -330,24 +334,41 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
         ax.grid(True)
         return fig
     else:
-        # k > 2: pairplot/scatter_matrix for first min(k, 5) components
-        import pandas as pd
-        from pandas.plotting import scatter_matrix
+        # k > 2: pairwise scatter plot средствами только matplotlib
         max_dim = min(k, 5)
-        df = pd.DataFrame(data[:, :max_dim], columns=[f'PC{i+1}' for i in range(max_dim)])
-        color = y if y is not None else None
-        fig = plt.figure(figsize=(2.5*max_dim, 2.5*max_dim))
-        axes = scatter_matrix(df, alpha=0.8, figsize=(2.5*max_dim, 2.5*max_dim), diagonal='hist', c=color, marker='o',
-                              hist_kwds={'color': 'gray', 'edgecolor': 'black'},
-                              colorbar=False)
-        # Добавим легенду вручную, если есть классы
+        fig, axes = plt.subplots(max_dim, max_dim, figsize=(2.5*max_dim, 2.5*max_dim))
+        # data: n x k, хотим брать data[:, j] и data[:, i]
+        for i in range(max_dim):
+            for j in range(max_dim):
+                ax = axes[i, j]
+                if i == j:
+                    ax.text(0.5, 0.5, f'PC{i+1}', fontsize=10, ha='center', va='center')
+                    ax.set_xticks([])
+                    ax.set_yticks([])
+                else:
+                    x = [row[j] for row in data]
+                    y_ = [row[i] for row in data]
+                    if y is not None:
+                        scatter = ax.scatter(x, y_, c=y, cmap='viridis', edgecolor='k', s=10, alpha=0.8)
+                    else:
+                        ax.scatter(x, y_, c='blue', edgecolor='k', s=10, alpha=0.8)
+                    if i == max_dim - 1:
+                        ax.set_xlabel(f'PC{j+1}')
+                    else:
+                        ax.set_xticks([])
+                    if j == 0:
+                        ax.set_ylabel(f'PC{i+1}')
+                    else:
+                        ax.set_yticks([])
         if y is not None and class_names is not None:
-            import matplotlib.patches as mpatches
             unique = sorted(set(y))
             colors = [plt.cm.viridis(i / max(1, len(unique) - 1)) for i in range(len(unique))]
             handles = [mpatches.Patch(color=colors[i], label=str(class_names[cl] if cl < len(class_names) else cl)) for i, cl in enumerate(unique)]
-            plt.legend(handles=handles, title="Класс", bbox_to_anchor=(1.05, 1), loc='upper left')
-        plt.suptitle(title or f'PCA Pairplot (первые {max_dim} компонент)', y=1.02)
+            fig.legend(handles=handles, title="Класс", bbox_to_anchor=(1.05, 1), loc='upper left')
+        if title is not None:
+            fig.suptitle(title, y=1.02)
+        else:
+            fig.suptitle(f'PCA Pairplot (первые {max_dim} компонент)', y=1.02)
         plt.tight_layout()
         return fig
 
@@ -433,7 +454,6 @@ def apply_pca_and_visualize(X, y, class_names, k=None, fig_path=None, title=None
     Применяет PCA к данным, строит график и возвращает проекцию и точность классификации.
     Если k=None, используется auto_select_k.
     """
-    from .matrix import Matrix
     from sklearn.model_selection import train_test_split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     X_train_mat = Matrix([list(row) for row in X_train])
