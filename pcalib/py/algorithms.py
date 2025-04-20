@@ -223,19 +223,41 @@ def pca(X: 'Matrix', k: int) -> Tuple['Matrix', float]:
     return X_proj, gamma
 
 
-def plot_pca_projection(X_proj: 'Matrix') -> Figure:
+def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) -> Figure:
     """
     Визуализирует проекцию данных на первые две главные компоненты.
     """
     if X_proj.m != 2:
         raise ValueError("Для визуализации требуется проекция на 2 компоненты (n x 2)")
     x = [row[0] for row in X_proj.data]
-    y = [row[1] for row in X_proj.data]
-    fig, ax = plt.subplots()
-    ax.scatter(x, y, c='blue', edgecolor='k')
+    y_proj = [row[1] for row in X_proj.data]
+    fig, ax = plt.subplots(figsize=(7, 5))
+    if y is not None:
+        import numpy as np
+        y = list(y)
+        scatter = ax.scatter(x, y_proj, c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
+        if class_names is not None:
+            # Для дискретных классов
+            handles = []
+            unique = sorted(set(y))
+            for i, cl in enumerate(unique):
+                handles.append(
+                    plt.Line2D([], [], marker='o', color='w',
+                               markerfacecolor=plt.cm.viridis(i / max(1, len(unique) - 1)),
+                               markeredgecolor='k', markersize=8,
+                               label=str(class_names[cl] if cl < len(class_names) else cl))
+                )
+            ax.legend(handles=handles, title="Класс")
+        else:
+            fig.colorbar(scatter, ax=ax, label='Class')
+    else:
+        ax.scatter(x, y_proj, c='blue', edgecolor='k', s=50, alpha=0.8)
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
-    ax.set_title('PCA Projection onto First Two Components')
+    if title is not None:
+        ax.set_title(title)
+    else:
+        ax.set_title('PCA Projection onto First Two Components')
     ax.grid(True)
     return fig
 
@@ -334,25 +356,41 @@ def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1):
     }
 
 
-def apply_pca_to_dataset(dataset_name: str, k: int) -> Tuple['Matrix', float]:
+def apply_pca_and_visualize(X, y, class_names, k, fig_path, title=None):
     """
-    Применяет PCA к реальному датасету и оценивает качество классификации.
+    Применяет PCA к данным, строит график и возвращает проекцию и точность классификации.
     """
-    from sklearn.datasets import load_digits, load_wine, load_iris
+    from .matrix import Matrix
     from sklearn.model_selection import train_test_split
-    if dataset_name == 'digits':
-        data = load_digits()
-    elif dataset_name == 'wine':
-        data = load_wine()
-    elif dataset_name == 'iris':
-        data = load_iris()
-    else:
-        raise ValueError("Поддерживаются только 'digits', 'wine', 'iris'")
-    X = data.data
-    y = data.target
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+    X_train_mat = Matrix([list(row) for row in X_train])
+    X_test_mat = Matrix([list(row) for row in X_test])
 
-    # Классификатор KNN реализуем вручную:
+    # PCA по train
+    from .algorithms import pca, mean_by_column
+    X_train_proj, _ = pca(X_train_mat, k)
+    # Получаем Vk и means
+    means = mean_by_column(X_train_mat)
+    X_train_centered = [[X_train_mat.data[i][j] - means[j] for j in range(X_train_mat.m)] for i in range(X_train_mat.n)]
+    X_test_centered = [[X_test_mat.data[i][j] - means[j] for j in range(X_test_mat.m)] for i in range(X_test_mat.n)]
+    # Получаем Vk
+    C = covariance_matrix(Matrix(X_train_centered))
+    eigenvalues = find_eigenvalues(C)
+    eigenvectors = find_eigenvectors(C, eigenvalues)
+    Vk_data = [[eigenvectors[j].data[i][0] for i in range(C.m)] for j in range(k)]
+    Vk = Matrix([list(col) for col in zip(*Vk_data)])  # m x k
+
+    # Проекция test
+    X_test_proj_data = []
+    for i in range(len(X_test_centered)):
+        row = []
+        for j in range(k):
+            val = sum(X_test_centered[i][l] * Vk.data[l][j] for l in range(len(X_test_centered[0])))
+            row.append(val)
+        X_test_proj_data.append(row)
+    X_test_proj = Matrix(X_test_proj_data)
+
+    # Классификация KNN вручную
     def knn_predict(X_train, y_train, X_test, k_neighbors=3):
         def euclidean(a, b):
             return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
@@ -365,35 +403,13 @@ def apply_pca_to_dataset(dataset_name: str, k: int) -> Tuple['Matrix', float]:
             preds.append(max(set(top_k), key=top_k.count))
         return preds
 
-    # Accuracy на исходных данных
-    y_pred_full = knn_predict(X_train, y_train, X_test)
-    acc_full = accuracy_score_manual(y_test, y_pred_full)
-    print(f"Точность на исходных данных: {acc_full:.4f}")
-    # PCA
-    X_train_mat = Matrix([list(row) for row in X_train])
-    X_test_mat = Matrix([list(row) for row in X_test])
-    X_train_proj, _ = pca(X_train_mat, k)
-    # Получаем Vk
-    X_train_centered = center_data(X_train_mat)
-    C = covariance_matrix(X_train_centered)
-    eigenvalues = find_eigenvalues(C)
-    eigenvectors = find_eigenvectors(C, eigenvalues)
-    Vk_data = [[eigenvectors[j].data[i][0] for i in range(C.m)] for j in range(k)]
-    Vk = Matrix([list(col) for col in zip(*Vk_data)])  # m x k
-    means = mean_by_column(X_train_mat)
-    X_test_centered_data = [[X_test_mat.data[i][j] - means[j] for j in range(X_test_mat.m)] for i in
-                            range(X_test_mat.n)]
-    X_test_centered = Matrix(X_test_centered_data)
-    X_test_proj_data = []
-    for i in range(X_test_centered.n):
-        row = []
-        for j in range(k):
-            val = sum(X_test_centered.data[i][l] * Vk.data[l][j] for l in range(X_test_centered.m))
-            row.append(val)
-        X_test_proj_data.append(row)
-    X_test_proj = Matrix(X_test_proj_data)
-    # Классификация на проекциях
     y_pred_pca = knn_predict(X_train_proj.data, y_train, X_test_proj.data)
-    acc_pca = accuracy_score_manual(y_test, y_pred_pca)
-    print(f"Точность после PCA (k={k}): {acc_pca:.4f}")
-    return X_test_proj, acc_pca
+    acc_pca = sum(yt == yp for yt, yp in zip(y_test, y_pred_pca)) / len(y_test)
+
+    # Визуализация по всему X (а не только по test!)
+    X_full_mat = Matrix([list(row) for row in X])
+    X_full_proj, _ = pca(X_full_mat, k)
+    fig = plot_pca_projection(X_full_proj, y=y, class_names=class_names, title=title)
+    fig.savefig(fig_path)
+
+    return X_full_proj, acc_pca
