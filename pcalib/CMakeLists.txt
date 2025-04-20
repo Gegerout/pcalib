@@ -9,6 +9,7 @@ add_library(pca_lib SHARED
         cpp/eigenvalues.cpp
         cpp/eigenvectors.cpp
         cpp/variance_ratio.cpp
+        cpp/projection.cpp
 )
 
 if(MSVC)

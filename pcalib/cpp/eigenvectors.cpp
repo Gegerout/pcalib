@@ -1,9 +1,9 @@
 #include "eigenvectors.h"
-#include "matrix_ops.h"
+#include "gauss_solver.h"
 #include <cmath>
 #include <stdexcept>
-#include <cstdlib>
 #include <random>
+#include <vector>
 
 namespace Eigenvectors {
     std::vector<std::vector<double> > find_eigenvectors(
@@ -30,98 +30,34 @@ namespace Eigenvectors {
         int m = C.size();
         const double eps = 1e-10;
 
-        std::vector<std::vector<double> > A = create_characteristic_matrix(C, lambda);
+        std::vector<std::vector<double> > A = C;
+        for (int i = 0; i < m; i++) {
+            A[i][i] -= lambda;
+        }
 
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dis(-1.0, 1.0);
-        std::vector<double> v(m);
+        std::vector<double> b(m);
         for (int i = 0; i < m; i++) {
-            v[i] = dis(gen);
-        }
-        v = normalize_vector(v);
-
-        const int max_iter = 100;
-        for (int iter = 0; iter < max_iter; iter++) {
-            std::vector<std::vector<double> > augmented(m, std::vector<double>(m + 1));
-            for (int i = 0; i < m; i++) {
-                for (int j = 0; j < m; j++) {
-                    augmented[i][j] = A[i][j];
-                    if (i == j) augmented[i][j] += eps;
-                }
-                augmented[i][m] = v[i];
-            }
-
-            for (int i = 0; i < m; i++) {
-                int max_row = i;
-                double max_val = std::abs(augmented[i][i]);
-                for (int j = i + 1; j < m; j++) {
-                    if (std::abs(augmented[j][i]) > max_val) {
-                        max_val = std::abs(augmented[j][i]);
-                        max_row = j;
-                    }
-                }
-
-                if (max_row != i) {
-                    std::swap(augmented[i], augmented[max_row]);
-                }
-
-                if (std::abs(augmented[i][i]) < eps) {
-                    continue;
-                }
-
-                double pivot = augmented[i][i];
-                for (int j = i; j <= m; j++) {
-                    augmented[i][j] /= pivot;
-                }
-
-                for (int j = 0; j < m; j++) {
-                    if (j != i && std::abs(augmented[j][i]) > eps) {
-                        double factor = augmented[j][i];
-                        for (int k = i; k <= m; k++) {
-                            augmented[j][k] -= factor * augmented[i][k];
-                        }
-                    }
-                }
-            }
-
-            std::vector<double> new_v(m, 0.0);
-            for (int i = m - 1; i >= 0; i--) {
-                new_v[i] = augmented[i][m];
-                for (int j = i + 1; j < m; j++) {
-                    new_v[i] -= augmented[i][j] * new_v[j];
-                }
-            }
-
-            new_v = normalize_vector(new_v);
-
-            // Проверка сходимости
-            double diff = 0.0;
-            for (int i = 0; i < m; i++) {
-                diff += std::abs(new_v[i] - v[i]);
-            }
-
-            if (diff < eps) {
-                return new_v;
-            }
-
-            v = new_v;
+            b[i] = dis(gen);
         }
 
-        return v;
-    }
-
-    std::vector<std::vector<double> > create_characteristic_matrix(
-        const std::vector<std::vector<double> > &C,
-        double lambda) {
-        int m = C.size();
-        std::vector<std::vector<double> > result = C;
-
+        std::vector<double> A_flat(m * m);
         for (int i = 0; i < m; i++) {
-            result[i][i] -= lambda;
+            for (int j = 0; j < m; j++) {
+                A_flat[i * m + j] = A[i][j];
+            }
         }
 
-        return result;
+        std::vector<double> x(m, 0.0);
+        int ret = gauss_solver(A_flat.data(), b.data(), x.data(), m);
+        if (ret != 0) {
+            return b;
+        }
+
+        x = normalize_vector(x);
+        return x;
     }
 
     std::vector<double> normalize_vector(const std::vector<double> &v) {
