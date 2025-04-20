@@ -3,7 +3,7 @@ import math
 import ctypes
 import platform
 import random
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from .matrix import Matrix
@@ -227,59 +227,129 @@ def explained_variance_ratio(eigenvalues: List[float], k: int) -> float:
     return pca_lib.explained_variance_ratio(eigenvalues_ctypes, m, k)
 
 
-def pca(X: 'Matrix', k: int) -> Tuple['Matrix', float]:
+def auto_select_k(eigenvalues: list[float], threshold: float = 0.95) -> int:
     """
-    Реализует алгоритм PCA.
+    Автоматический выбор числа главных компонент по порогу объяснённой дисперсии.
+    """
+    total = sum(eigenvalues)
+    explained = 0.0
+    for k, val in enumerate(eigenvalues, 1):
+        explained += val
+        if explained / total >= threshold:
+            return k
+    return len(eigenvalues)
+
+
+def pca(X: 'Matrix', k: Optional[int] = None, threshold: float = 0.95) -> Tuple['Matrix', float, int]:
+    """
+    Реализует алгоритм PCA. Если k=None, выбирает оптимальное k по порогу explained variance.
+    Возвращает (X_proj, gamma, k_used)
     """
     n, m = X.n, X.m
     X_centered = center_data(X)
     C = covariance_matrix(X_centered)
     eigenvalues = find_eigenvalues(C)
+    if k is None:
+        k_used = auto_select_k(eigenvalues, threshold=threshold)
+    else:
+        k_used = k
     eigenvectors = find_eigenvectors(C, eigenvalues)
-    Vk_data = [[eigenvectors[j].data[i][0] for i in range(m)] for j in range(k)]
+    Vk_data = [[eigenvectors[j].data[i][0] for i in range(m)] for j in range(k_used)]
     Vk = type(X)([list(col) for col in zip(*Vk_data)])
     X_proj = project_data_py(X_centered, Vk)
-    gamma = explained_variance_ratio(eigenvalues, k)
-    return X_proj, gamma
+    gamma = explained_variance_ratio(eigenvalues, k_used)
+    return X_proj, gamma, k_used
 
 
 def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) -> Figure:
     """
-    Визуализирует проекцию данных на первые две главные компоненты.
+    Визуализирует проекцию данных на первые k главных компонент.
+    Если k == 2: обычный scatter plot.
+    Если k > 2: матрица парных scatter plot (pairplot) для первых min(k, 5) компонент.
+    Если k == 1: гистограмма/stripplot по первой компоненте.
     """
-    if X_proj.m != 2:
-        raise ValueError("Для визуализации требуется проекция на 2 компоненты (n x 2)")
-    x = [row[0] for row in X_proj.data]
-    y_proj = [row[1] for row in X_proj.data]
-    fig, ax = plt.subplots(figsize=(7, 5))
-    if y is not None:
-        import numpy as np
-        y = list(y)
-        scatter = ax.scatter(x, y_proj, c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
-        if class_names is not None:
-            # Для дискретных классов
-            handles = []
-            unique = sorted(set(y))
-            for i, cl in enumerate(unique):
-                handles.append(
-                    plt.Line2D([], [], marker='o', color='w',
-                               markerfacecolor=plt.cm.viridis(i / max(1, len(unique) - 1)),
-                               markeredgecolor='k', markersize=8,
-                               label=str(class_names[cl] if cl < len(class_names) else cl))
-                )
-            ax.legend(handles=handles, title="Класс")
+    import numpy as np
+    k = X_proj.m
+    n = X_proj.n
+    data = np.array(X_proj.data)
+    if k < 1:
+        raise ValueError("Для визуализации требуется хотя бы одна компонента (n x k, k >= 1)")
+    if k == 1:
+        fig, ax = plt.subplots(figsize=(7, 2))
+        if y is not None:
+            scatter = ax.scatter(data[:, 0], np.zeros(n), c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
+            if class_names is not None:
+                handles = []
+                unique = sorted(set(y))
+                for i, cl in enumerate(unique):
+                    handles.append(
+                        plt.Line2D([], [], marker='o', color='w',
+                                   markerfacecolor=plt.cm.viridis(i / max(1, len(unique) - 1)),
+                                   markeredgecolor='k', markersize=8,
+                                   label=str(class_names[cl] if cl < len(class_names) else cl))
+                    )
+                ax.legend(handles=handles, title="Класс")
+            else:
+                fig.colorbar(scatter, ax=ax, label='Class')
         else:
-            fig.colorbar(scatter, ax=ax, label='Class')
+            ax.scatter(data[:, 0], np.zeros(n), c='blue', edgecolor='k', s=50, alpha=0.8)
+        ax.set_xlabel('PC1')
+        ax.set_yticks([])
+        if title is not None:
+            ax.set_title(title)
+        else:
+            ax.set_title('PCA Projection onto First Component')
+        ax.grid(True)
+        return fig
+    elif k == 2:
+        fig, ax = plt.subplots(figsize=(7, 5))
+        if y is not None:
+            y = list(y)
+            scatter = ax.scatter(data[:, 0], data[:, 1], c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
+            if class_names is not None:
+                handles = []
+                unique = sorted(set(y))
+                for i, cl in enumerate(unique):
+                    handles.append(
+                        plt.Line2D([], [], marker='o', color='w',
+                                   markerfacecolor=plt.cm.viridis(i / max(1, len(unique) - 1)),
+                                   markeredgecolor='k', markersize=8,
+                                   label=str(class_names[cl] if cl < len(class_names) else cl))
+                    )
+                ax.legend(handles=handles, title="Класс")
+            else:
+                fig.colorbar(scatter, ax=ax, label='Class')
+        else:
+            ax.scatter(data[:, 0], data[:, 1], c='blue', edgecolor='k', s=50, alpha=0.8)
+        ax.set_xlabel('PC1')
+        ax.set_ylabel('PC2')
+        if title is not None:
+            ax.set_title(title)
+        else:
+            ax.set_title('PCA Projection onto First Two Components')
+        ax.grid(True)
+        return fig
     else:
-        ax.scatter(x, y_proj, c='blue', edgecolor='k', s=50, alpha=0.8)
-    ax.set_xlabel('PC1')
-    ax.set_ylabel('PC2')
-    if title is not None:
-        ax.set_title(title)
-    else:
-        ax.set_title('PCA Projection onto First Two Components')
-    ax.grid(True)
-    return fig
+        # k > 2: pairplot/scatter_matrix for first min(k, 5) components
+        import pandas as pd
+        from pandas.plotting import scatter_matrix
+        max_dim = min(k, 5)
+        df = pd.DataFrame(data[:, :max_dim], columns=[f'PC{i+1}' for i in range(max_dim)])
+        color = y if y is not None else None
+        fig = plt.figure(figsize=(2.5*max_dim, 2.5*max_dim))
+        axes = scatter_matrix(df, alpha=0.8, figsize=(2.5*max_dim, 2.5*max_dim), diagonal='hist', c=color, marker='o',
+                              hist_kwds={'color': 'gray', 'edgecolor': 'black'},
+                              colorbar=False)
+        # Добавим легенду вручную, если есть классы
+        if y is not None and class_names is not None:
+            import matplotlib.patches as mpatches
+            unique = sorted(set(y))
+            colors = [plt.cm.viridis(i / max(1, len(unique) - 1)) for i in range(len(unique))]
+            handles = [mpatches.Patch(color=colors[i], label=str(class_names[cl] if cl < len(class_names) else cl)) for i, cl in enumerate(unique)]
+            plt.legend(handles=handles, title="Класс", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.suptitle(title or f'PCA Pairplot (первые {max_dim} компонент)', y=1.02)
+        plt.tight_layout()
+        return fig
 
 
 def reconstruction_error(X_orig: 'Matrix', X_recon: 'Matrix') -> float:
@@ -320,22 +390,10 @@ def reconstruct_from_pca(X_proj: Matrix, X: Matrix, k: int) -> Matrix:
     return X_recon
 
 
-def auto_select_k(eigenvalues: list[float], threshold: float = 0.95) -> int:
-    """
-    Автоматический выбор числа главных компонент по порогу объяснённой дисперсии.
-    """
-    total = sum(eigenvalues)
-    explained = 0.0
-    for k, val in enumerate(eigenvalues, 1):
-        explained += val
-        if explained / total >= threshold:
-            return k
-    return len(eigenvalues)
-
-
-def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1):
+def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1, k: int = None, threshold: float = 0.95):
     """
     Добавляет шум к данным и сравнивает результаты PCA до и после.
+    Если k=None, используется auto_select_k.
     """
     n, m = X.n, X.m
     means = []
@@ -354,25 +412,26 @@ def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1):
             row.append(X.data[i][j] + noise)
         X_noisy_data.append(row)
     X_noisy = type(X)(X_noisy_data)
-    X_proj, gamma = pca(X, k=2)
-    X_proj_noisy, gamma_noisy = pca(X_noisy, k=2)
+    X_proj, gamma, k_used = pca(X, k=k, threshold=threshold)
+    X_proj_noisy, gamma_noisy, _ = pca(X_noisy, k=k_used, threshold=threshold)
     fig1 = plot_pca_projection(X_proj)
     fig2 = plot_pca_projection(X_proj_noisy)
-    print(f"Доля объяснённой дисперсии до шума: {gamma:.4f}")
-    print(f"Доля объяснённой дисперсии после шума: {gamma_noisy:.4f}")
+    
     return {
         'X_proj': X_proj,
         'gamma': gamma,
         'fig_before': fig1,
         'X_proj_noisy': X_proj_noisy,
         'gamma_noisy': gamma_noisy,
-        'fig_after': fig2
+        'fig_after': fig2,
+        'k_used': k_used
     }
 
 
-def apply_pca_and_visualize(X, y, class_names, k, fig_path, title=None):
+def apply_pca_and_visualize(X, y, class_names, k=None, fig_path=None, title=None, threshold: float = 0.95):
     """
     Применяет PCA к данным, строит график и возвращает проекцию и точность классификации.
+    Если k=None, используется auto_select_k.
     """
     from .matrix import Matrix
     from sklearn.model_selection import train_test_split
@@ -380,22 +439,28 @@ def apply_pca_and_visualize(X, y, class_names, k, fig_path, title=None):
     X_train_mat = Matrix([list(row) for row in X_train])
     X_test_mat = Matrix([list(row) for row in X_test])
 
-    from .algorithms import pca
+    # PCA по train
     X_train_centered = center_data(X_train_mat)
     C = covariance_matrix(X_train_centered)
     eigenvalues = find_eigenvalues(C)
+    if k is None:
+        k_used = auto_select_k(eigenvalues, threshold=threshold)
+    else:
+        k_used = k
     eigenvectors = find_eigenvectors(C, eigenvalues)
-    k_dim = k
-    Vk_data = [[eigenvectors[j].data[i][0] for i in range(C.m)] for j in range(k_dim)]
+    Vk_data = [[eigenvectors[j].data[i][0] for i in range(C.m)] for j in range(k_used)]
     Vk = Matrix([list(col) for col in zip(*Vk_data)])  # m x k
 
+    # Центрируем test по средним train
     means = mean_by_column(X_train_mat)
     X_test_centered_data = [[X_test_mat.data[i][j] - means[j] for j in range(X_test_mat.m)] for i in range(X_test_mat.n)]
     X_test_centered = Matrix(X_test_centered_data)
 
+    # Проекция
     X_train_proj = project_data_py(X_train_centered, Vk)
     X_test_proj = project_data_py(X_test_centered, Vk)
 
+    # Классификация KNN вручную
     def knn_predict(X_train, y_train, X_test, k_neighbors=3):
         def euclidean(a, b):
             return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
@@ -410,9 +475,11 @@ def apply_pca_and_visualize(X, y, class_names, k, fig_path, title=None):
     y_pred_pca = knn_predict(X_train_proj.data, y_train, X_test_proj.data)
     acc_pca = sum(yt == yp for yt, yp in zip(y_test, y_pred_pca)) / len(y_test)
 
+    # Визуализация по всему X (а не только по test!)
     X_full_mat = Matrix([list(row) for row in X])
-    X_full_proj, _ = pca(X_full_mat, k)
+    X_full_proj, _, _ = pca(X_full_mat, k=k_used, threshold=threshold)
     fig = plot_pca_projection(X_full_proj, y=y, class_names=class_names, title=title)
-    fig.savefig(fig_path)
+    if fig_path is not None:
+        fig.savefig(fig_path)
 
-    return X_full_proj, acc_pca
+    return X_full_proj, acc_pca, k_used
