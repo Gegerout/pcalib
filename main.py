@@ -1,6 +1,58 @@
-from pcalib import add_noise_and_compare, Matrix, pca, project_data_py, plot_pca_projection, center_data
-from sklearn.datasets import load_iris, load_wine
+from pcalib import add_noise_and_compare, Matrix, pca, project_data_py, plot_pca_projection, center_data, gauss_solver, \
+    covariance_matrix, find_eigenvalues, find_eigenvectors, explained_variance_ratio
 from sklearn.model_selection import train_test_split
+
+# Хранилище промежуточных результатов
+results = {}
+
+
+def input_matrix(name="матрица"):
+    print(f"Введите размеры {name} (через пробел): n m")
+    n, m = map(int, input().split())
+    print(f"Введите {n} строк по {m} чисел через пробел:")
+    data = []
+    for i in range(n):
+        row = list(map(float, input().split()))
+        if len(row) != m:
+            print(f"Ошибка: ожидалось {m} чисел!")
+            return None
+        data.append(row)
+    return Matrix(data)
+
+
+def input_vector(name="вектор", n=None):
+    if n is None:
+        print(f"Введите длину {name}:")
+        n = int(input())
+    print(f"Введите {n} чисел через пробел:")
+    row = list(map(float, input().split()))
+    if len(row) != n:
+        print(f"Ошибка: ожидалось {n} чисел!")
+        return None
+    return Matrix([[x] for x in row])
+
+
+def print_matrix(mat, name="Результат"):
+    print(f"{name} (размер {mat.n}x{mat.m}):")
+    for row in mat.data:
+        print(" ".join(f"{x:.6g}" for x in row))
+
+
+def print_vector(vec, name="Вектор"):
+    print(f"{name}:")
+    print(" ".join(f"{x[0]:.6g}" for x in vec.data))
+
+
+def menu():
+    print("\nВыберите режим:")
+    print("1. Решить СЛАУ методом Гаусса")
+    print("2. Центрировать матрицу")
+    print("3. Вычислить матрицу ковариаций")
+    print("4. Найти собственные значения")
+    print("5. Найти собственные векторы")
+    print("6. Доля объяснённой дисперсии")
+    print("0. Выйти")
+    return input("Ваш выбор: ").strip()
 
 
 def knn_predict(X_train, y_train, X_test, k_neighbors=3):
@@ -27,60 +79,104 @@ def accuracy_score(X, y, k_neighbors=3):
 
 
 def main():
-    # IRIS
-    iris = load_iris()
-    print("\n=== PCA на датасете iris ===")
-    acc_before_iris, dim_iris = accuracy_score(iris.data, iris.target)
-    print(f"Точность классификации на исходных данных (iris): {acc_before_iris:.4f}")
-    print(f"Размерность исходных данных: {dim_iris}")
-
-    X = iris.data
-    y = iris.target
-    class_names = iris.target_names
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    X_train_mat = Matrix([list(row) for row in X_train])
-    X_test_mat = Matrix([list(row) for row in X_test])
-    X_train_proj, gamma, k_used, Vk, means = pca(X_train_mat, k=None, threshold=0.95)
-    X_test_centered = center_data(X_test_mat, means)
-    X_test_proj = project_data_py(X_test_centered, Vk)
-    y_pred_pca = knn_predict(X_train_proj.data, y_train, X_test_proj.data)
-    acc_pca = sum(yt == yp for yt, yp in zip(y_test, y_pred_pca)) / len(y_test)
-    print(f"Размерность после PCA: {X_train_proj.m}")
-    print(f"Оптимальное число компонент (k): {k_used}")
-    print(f"Точность после применения PCA (iris): {acc_pca:.4f}")
-    X_full_mat = Matrix([list(row) for row in X])
-    X_full_proj, _, _, _, _ = pca(X_full_mat, k=k_used, threshold=0.95)
-    fig = plot_pca_projection(X_full_proj, y=y, class_names=class_names, title="PCA Projection (iris)")
-    fig.savefig('results/pca_iris.png')
-    print(f"См. визуализацию: results/pca_iris.png")
-
-    # WINE
-    wine = load_wine()
-    print("\n=== PCA на датасете wine ===")
-    acc_before_wine, dim_wine = accuracy_score(wine.data, wine.target)
-    print(f"Точность классификации на исходных данных (wine): {acc_before_wine:.4f}")
-    print(f"Размерность исходных данных: {dim_wine}")
-    X = wine.data
-    y = wine.target
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    X_train_mat = Matrix([list(row) for row in X_train])
-    X_test_mat = Matrix([list(row) for row in X_test])
-    X_train_proj, gamma, k_used, Vk, means = pca(X_train_mat, k=1, threshold=0.95)
-    X_test_centered = center_data(X_test_mat, means)
-    X_test_proj = project_data_py(X_test_centered, Vk)
-    y_pred_pca = knn_predict(X_train_proj.data, y_train, X_test_proj.data)
-    acc_pca = sum(yt == yp for yt, yp in zip(y_test, y_pred_pca)) / len(y_test)
-    print(f"Размерность после PCA: {X_train_proj.m}")
-    print(f"Оптимальное число компонент (k): {k_used}")
-    print(f"Точность после применения PCA (wine): {acc_pca:.4f}")
-
-    # Проверка влияния шума на PCA (wine)
-    print("\n--- Влияние шума на PCA (wine) ---")
-    X_mat = Matrix([list(row) for row in wine.data])
-    res = add_noise_and_compare(X_mat, noise_level=0.5)
-    print(f"Использовано k = {res['k_used']}")
-    print(f"Доля объяснённой дисперсии до шума: {res['gamma']:.4f}")
-    print(f"Доля объяснённой дисперсии после шума: {res['gamma_noisy']:.4f}")
+    print("\n=== Консольное приложение PCA Lab ===")
+    while True:
+        choice = menu()
+        if choice == "0":
+            print("Выход.")
+            break
+        elif choice == "1":
+            print("\n--- Решение СЛАУ методом Гаусса ---")
+            A = input_matrix("A")
+            if A is None:
+                continue
+            b = input_vector("b", n=A.n)
+            if b is None:
+                continue
+            try:
+                sol = gauss_solver(A, [row[0] for row in b.data])
+                print("Решение:")
+                print(" ".join(f"{x:.6g}" for x in sol))
+                results['last_solution'] = sol
+            except Exception as e:
+                print(f"Ошибка: {e}")
+        elif choice == "2":
+            print("\n--- Центрирование матрицы ---")
+            X = input_matrix("X")
+            if X is None:
+                continue
+            Xc = center_data(X)
+            print_matrix(Xc, "Центрированная матрица")
+            results['last_centered'] = Xc
+        elif choice == "3":
+            print("\n--- Матрица ковариаций ---")
+            print("Использовать последнюю центрированную матрицу? (y/n)")
+            use_last = input().strip().lower() == 'y'
+            if use_last and 'last_centered' in results:
+                Xc = results['last_centered']
+            else:
+                Xc = input_matrix("центрированная матрица")
+                if Xc is None:
+                    continue
+            C = covariance_matrix(Xc)
+            print_matrix(C, "Матрица ковариаций")
+            results['last_cov'] = C
+        elif choice == "4":
+            print("\n--- Собственные значения ---")
+            print("Использовать последнюю матрицу ковариаций? (y/n)")
+            use_last = input().strip().lower() == 'y'
+            if use_last and 'last_cov' in results:
+                C = results['last_cov']
+            else:
+                C = input_matrix("матрица ковариаций")
+                if C is None:
+                    continue
+            try:
+                eigs = find_eigenvalues(C)
+                print("Собственные значения:")
+                print(" ".join(f"{x:.6g}" for x in eigs))
+                results['last_eigenvalues'] = eigs
+                results['last_cov'] = C
+            except Exception as e:
+                print(f"Ошибка: {e}")
+        elif choice == "5":
+            print("\n--- Собственные векторы ---")
+            print("Использовать последние матрицу ковариаций и собственные значения? (y/n)")
+            use_last = input().strip().lower() == 'y'
+            if use_last and 'last_cov' in results and 'last_eigenvalues' in results:
+                C = results['last_cov']
+                eigs = results['last_eigenvalues']
+            else:
+                C = input_matrix("матрица ковариаций")
+                if C is None:
+                    continue
+                print("Введите собственные значения через пробел:")
+                eigs = list(map(float, input().split()))
+            try:
+                vecs = find_eigenvectors(C, eigs)
+                for idx, v in enumerate(vecs):
+                    print_vector(v, f"Собственный вектор {idx + 1}")
+                results['last_eigenvectors'] = vecs
+            except Exception as e:
+                print(f"Ошибка: {e}")
+        elif choice == "6":
+            print("\n--- Доля объяснённой дисперсии ---")
+            print("Использовать последние собственные значения? (y/n)")
+            use_last = input().strip().lower() == 'y'
+            if use_last and 'last_eigenvalues' in results:
+                eigs = results['last_eigenvalues']
+            else:
+                print("Введите собственные значения через пробел:")
+                eigs = list(map(float, input().split()))
+            print("Введите k (число компонент):")
+            k = int(input())
+            try:
+                gamma = explained_variance_ratio(eigs, k)
+                print(f"Доля объяснённой дисперсии для k={k}: {gamma:.6g}")
+            except Exception as e:
+                print(f"Ошибка: {e}")
+        else:
+            print("Неизвестный режим. Попробуйте снова.")
 
 
 if __name__ == "__main__":
