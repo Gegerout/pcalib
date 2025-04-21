@@ -1,7 +1,6 @@
 import unittest
 import math
-from pcalib.py.algorithms import Matrix, handle_missing_values, add_noise_and_compare, accuracy_score_manual, \
-    mean_by_column
+from pcalib.py.algorithms import Matrix, handle_missing_values, add_noise_and_compare, mean_by_column
 
 
 class TestUtils(unittest.TestCase):
@@ -10,13 +9,6 @@ class TestUtils(unittest.TestCase):
         X_filled = handle_missing_values(X)
 
         self.assertAlmostEqual(X_filled.data[0][1], 4.0)
-
-    def test_accuracy_score_manual(self):
-        y_true = [1, 2, 3]
-        y_pred = [1, 2, 2]
-        acc = accuracy_score_manual(y_true, y_pred)
-
-        self.assertAlmostEqual(acc, 2 / 3)
 
     def test_mean_by_column(self):
         X = Matrix([[1, 2], [3, 4]])

@@ -8,7 +8,7 @@ class TestPCA(unittest.TestCase):
         self.X = Matrix([[1, 2], [3, 4], [5, 6]])
 
     def test_pca_projection(self):
-        X_proj, gamma = pca(self.X, k=1)
+        X_proj, gamma, *_ = pca(self.X, k=1)
         mean_proj = sum(row[0] for row in X_proj.data) / len(X_proj.data)
 
         self.assertAlmostEqual(mean_proj, 0.0, places=5)
@@ -26,7 +26,7 @@ class TestPCA(unittest.TestCase):
         self.assertEqual(k, 2)
 
     def test_reconstruction_error(self):
-        X_proj, _ = pca(self.X, k=1)
+        X_proj, *_ = pca(self.X, k=1)
         X_recon = reconstruct_from_pca(X_proj, self.X, k=1)
         err = reconstruction_error(self.X, X_recon)
 
@@ -34,7 +34,7 @@ class TestPCA(unittest.TestCase):
         self.assertTrue(err < 5)
 
     def test_plot_pca_projection(self):
-        X_proj, _ = pca(self.X, k=2)
+        X_proj, *_ = pca(self.X, k=2)
         fig = plot_pca_projection(X_proj)
 
         self.assertTrue(hasattr(fig, 'savefig'))
