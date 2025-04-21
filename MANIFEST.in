@@ -1,0 +1,2 @@
+recursive-include pcalib/py *.py
+recursive-include pcalib/py *.dylib

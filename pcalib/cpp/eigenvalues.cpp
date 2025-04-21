@@ -2,125 +2,70 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <limits>
 #include <stdexcept>
 #include <cstdlib>
 
-static double determinant(const std::vector<std::vector<double> > &A) {
-    int n = A.size();
-    if (n == 0 || A[0].size() != n)
+// Подсчёт числа собственных значений < x через полное LDL^T-разложение
+int sturm_count_full(const std::vector<std::vector<double> > &C, double x, double eps = 1e-12) {
+    int n = C.size();
+    std::vector<std::vector<double> > L(n, std::vector<double>(n, 0.0));
+    std::vector<double> D(n, 0.0);
+    for (int i = 0; i < n; ++i) L[i][i] = 1.0;
+    for (int k = 0; k < n; ++k) {
+        double sum_LDL = 0.0;
+        for (int j = 0; j < k; ++j)
+            sum_LDL += L[k][j] * L[k][j] * D[j];
+        double Dk = C[k][k] - x - sum_LDL;
+        if (std::abs(Dk) < eps) Dk = (Dk < 0 ? -eps : eps);
+        D[k] = Dk;
+        for (int i = k + 1; i < n; ++i) {
+            double sum_LDL2 = 0.0;
+            for (int j = 0; j < k; ++j)
+                sum_LDL2 += L[i][j] * L[k][j] * D[j];
+            L[i][k] = (C[i][k] - sum_LDL2) / Dk;
+        }
+    }
+    int cnt = 0;
+    for (int k = 0; k < n; ++k)
+        if (D[k] < 0) ++cnt;
+    return cnt;
+}
+
+void bisect_interval(const std::vector<std::vector<double> > &C,
+                     double a, double b,
+                     int cnt_a, int cnt_b,
+                     double tol,
+                     std::vector<double> &out) {
+    int roots = cnt_b - cnt_a;
+    if (roots == 0) return;
+    if ((b - a) < tol) {
+        double mid = 0.5 * (a + b);
+        for (int i = 0; i < roots; ++i) out.push_back(mid);
+        return;
+    }
+    double m = 0.5 * (a + b);
+    int cnt_m = sturm_count_full(C, m);
+    bisect_interval(C, a, m, cnt_a, cnt_m, tol, out);
+    bisect_interval(C, m, b, cnt_m, cnt_b, tol, out);
+}
+
+std::vector<double> find_eigenvalues(const std::vector<std::vector<double> > &C, double tol) {
+    int n = C.size();
+    if (n == 0 || C[0].size() != static_cast<size_t>(n))
         throw std::invalid_argument("Матрица должна быть квадратной");
-
-    std::vector<std::vector<double> > mat = A;
-    double det = 1.0;
-    const double eps = 1e-12;
-
-    for (int i = 0; i < n; i++) {
-        int pivot = i;
-        for (int j = i; j < n; j++) {
-            if (std::abs(mat[j][i]) > std::abs(mat[pivot][i]))
-                pivot = j;
-        }
-        if (std::abs(mat[pivot][i]) < eps)
-            return 0.0;
-
-        if (pivot != i) {
-            std::swap(mat[i], mat[pivot]);
-            det *= -1.0;
-        }
-        det *= mat[i][i];
-        double invPivot = 1.0 / mat[i][i];
-        for (int j = i + 1; j < n; j++) {
-            double factor = mat[j][i] * invPivot;
-            for (int k = i; k < n; k++) {
-                mat[j][k] -= factor * mat[i][k];
-            }
-        }
-    }
-    return det;
-}
-
-namespace {
-    double submatrix_determinant(const std::vector<std::vector<double> > &C, double lambda, int k) {
-        std::vector<std::vector<double> > sub(k, std::vector<double>(k, 0.0));
-        for (int i = 0; i < k; i++) {
-            for (int j = 0; j < k; j++) {
-                sub[i][j] = C[i][j];
-                if (i == j)
-                    sub[i][j] -= lambda;
-            }
-        }
-        return determinant(sub);
-    }
-
-    int sign_val(double x, double tol_sign = 1e-12) {
-        return (x > tol_sign) ? 1 : -1;
-    }
-
-    int count_eigenvalues_less_than(const std::vector<std::vector<double> > &C, double lambda) {
-        int n = C.size();
-        int sign_changes = 0;
-        int prev_sign = 1; // p0 считается положительным
-
-        for (int i = 1; i <= n; i++) {
-            double p_i = submatrix_determinant(C, lambda, i);
-            int cur_sign = sign_val(p_i);
-            if (cur_sign != prev_sign)
-                sign_changes++;
-            prev_sign = cur_sign;
-        }
-        return sign_changes;
-    }
-
-    std::pair<double, double> find_eigenvalue_bounds(const std::vector<std::vector<double> > &C) {
-        int n = C.size();
-        double min_bound = std::numeric_limits<double>::infinity();
-        double max_bound = -std::numeric_limits<double>::infinity();
-
-        for (int i = 0; i < n; i++) {
-            double row_sum = 0.0;
-            for (int j = 0; j < n; j++) {
-                if (i != j)
-                    row_sum += std::abs(C[i][j]);
-            }
-            double lower = C[i][i] - row_sum;
-            double upper = C[i][i] + row_sum;
-            min_bound = std::min(min_bound, lower);
-            max_bound = std::max(max_bound, upper);
-        }
-        double margin = 0.1 * (max_bound - min_bound);
-        return {min_bound - margin, max_bound + margin};
-    }
-}
-
-namespace Eigenvalues {
-    std::vector<double> find_eigenvalues(const std::vector<std::vector<double> > &C, double tol) {
-        int n = C.size();
-        if (n == 0 || C[0].size() != static_cast<size_t>(n))
-            throw std::invalid_argument("Матрица должна быть квадратной");
-
-        auto bounds = find_eigenvalue_bounds(C);
-        double lower_bound = bounds.first;
-        double upper_bound = bounds.second;
-
-        std::vector<double> eigenvalues_asc(n, 0.0);
-
-        for (int j = 1; j <= n; j++) {
-            double left = lower_bound;
-            double right = upper_bound;
-            while (right - left > tol) {
-                double mid = (left + right) / 2.0;
-                int count = count_eigenvalues_less_than(C, mid);
-                if (count < j)
-                    left = mid;
-                else
-                    right = mid;
-            }
-            eigenvalues_asc[j - 1] = (left + right) / 2.0;
-        }
-        std::sort(eigenvalues_asc.begin(), eigenvalues_asc.end(), std::greater<double>());
-        return eigenvalues_asc;
-    }
+    double L = 0.0;
+    double U = 0.0;
+    for (int i = 0; i < n; ++i) U += C[i][i];
+    U += tol;
+    int cnt_L = sturm_count_full(C, L);
+    int cnt_U = sturm_count_full(C, U);
+    if (cnt_U - cnt_L != n)
+        throw std::runtime_error(
+            "Ожидалось " + std::to_string(n) + " корней, а найдено " + std::to_string(cnt_U - cnt_L));
+    std::vector<double> eigenvals;
+    bisect_interval(C, L, U, cnt_L, cnt_U, tol, eigenvals);
+    std::sort(eigenvals.begin(), eigenvals.end(), std::greater<double>());
+    return eigenvals;
 }
 
 extern "C" {
@@ -131,7 +76,7 @@ double *find_eigenvalues(double *C, int m, double tol) {
             matrix[i][j] = C[i * m + j];
         }
     }
-    std::vector<double> eigen = Eigenvalues::find_eigenvalues(matrix, tol);
+    std::vector<double> eigen = find_eigenvalues(matrix, tol);
     double *result = new double[m];
     for (int i = 0; i < m; i++)
         result[i] = eigen[i];

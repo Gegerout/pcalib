@@ -1,19 +1,6 @@
 #ifndef EIGENVALUES_H
 #define EIGENVALUES_H
 
-#include <vector>
-
-namespace Eigenvalues {
-    /**
-     * @brief Находит собственные значения матрицы C.
-     * 
-     * @param C Матрица ковариаций (m×m).
-     * @param tol Допустимая погрешность для определения сходимости.
-     * @return std::vector<double> Список собственных значений.
-     */
-    std::vector<double> find_eigenvalues(const std::vector<std::vector<double> > &C, double tol);
-}
-
 extern "C" {
 /**
  * @brief Находит собственные значения матрицы C.

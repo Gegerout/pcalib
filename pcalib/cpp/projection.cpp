@@ -1,7 +1,7 @@
 #include "projection.h"
 
+extern "C" {
 void project_data(const double *X, const double *Vk, double *X_proj, int n, int m, int k) {
-    // X: n x m, Vk: m x k, X_proj: n x k
     for (int i = 0; i < n; ++i) {
         for (int j = 0; j < k; ++j) {
             double sum = 0.0;
@@ -11,4 +11,5 @@ void project_data(const double *X, const double *Vk, double *X_proj, int n, int 
             X_proj[i * k + j] = sum;
         }
     }
+}
 }
