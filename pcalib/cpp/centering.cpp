@@ -6,7 +6,6 @@ void center_data(const double *X, double *X_centered, int n, int m, const double
     std::vector<double> local_means;
     const double *use_means = means;
     if (!means) {
-        // Вычисляем средние по столбцам
         local_means.resize(m, 0.0);
         for (int j = 0; j < m; j++) {
             double sum = 0.0;

@@ -2,7 +2,6 @@ from pcalib import add_noise_and_compare, Matrix, pca, project_data_py, plot_pca
     covariance_matrix, find_eigenvalues, find_eigenvectors, explained_variance_ratio
 from sklearn.model_selection import train_test_split
 
-# Хранилище промежуточных результатов
 results = {}
 
 

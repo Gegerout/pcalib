@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from .matrix import Matrix
 
-# --- C++ библиотека ---
+# C++ библиотека
 if platform.system() == 'Windows':
     lib_ext = '.dll'
 elif platform.system() == 'Darwin':
@@ -21,7 +21,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 lib_path = os.path.join(current_dir, 'libpca_lib' + lib_ext)
 pca_lib = ctypes.CDLL(lib_path)
 
-# --- Аргументы C++ функций ---
+# Аргументы C++ функций
 pca_lib.gauss_solver.argtypes = [
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
@@ -69,25 +69,24 @@ pca_lib.explained_variance_ratio.argtypes = [
 ]
 pca_lib.explained_variance_ratio.restype = ctypes.c_double
 
-# Добавляем project_data
 pca_lib.project_data.argtypes = [
-    ctypes.POINTER(ctypes.c_double),  # X
-    ctypes.POINTER(ctypes.c_double),  # Vk
-    ctypes.POINTER(ctypes.c_double),  # X_proj
-    ctypes.c_int,  # n
-    ctypes.c_int,  # m
-    ctypes.c_int  # k
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.POINTER(ctypes.c_double),
+    ctypes.c_int,
+    ctypes.c_int,
+    ctypes.c_int
 ]
 pca_lib.project_data.restype = None
 
 
 def project_data_py(X: Matrix, Vk: Matrix) -> Matrix:
     """
-    Проецирует матрицу X (n x m) на Vk (m x k) через C++ функцию.
+    Проецирует матрицу X (n x m) на Vk (m x k) с использованием C++ функции
     """
     n, m = X.n, X.m
     m2, k = Vk.n, Vk.m
-    assert m == m2, f"Vk shape mismatch: {m} != {m2}"
+    assert m == m2, f"Несоответсвие размеров: {m} != {m2}"
     flat_X = [elem for row in X.data for elem in row]
     flat_Vk = [elem for row in Vk.data for elem in row]
     ArrayXType = ctypes.c_double * (n * m)
@@ -102,13 +101,16 @@ def project_data_py(X: Matrix, Vk: Matrix) -> Matrix:
 
 
 def mean_by_column(X: Matrix) -> List[float]:
+    """
+    Считает среднее по столбцам
+    """
     n, m = X.n, X.m
     return [sum(X.data[i][j] for i in range(n)) / n for j in range(m)]
 
 
 def gauss_solver(matrix: Matrix, b: List[float], ndigits: int = 6) -> List[float]:
     """
-    Решает систему Ax = b методом Гаусса с использованием C++ функции.
+    Решает систему Ax = b методом Гаусса с использованием C++ функции
     """
     A_dense = matrix.data
     n = matrix.n
@@ -131,9 +133,9 @@ def gauss_solver(matrix: Matrix, b: List[float], ndigits: int = 6) -> List[float
 
 def center_data(matrix: Matrix, means: Optional[list] = None) -> Matrix:
     """
-    Центрирует данные матрицы с использованием C++ функции.
-    Если means=None, центрирует по средним самой матрицы.
-    Если means задан, центрирует по ним.
+    Центрирует данные матрицы с использованием C++ функции
+    Если means=None, центрирует по средним самой матрицы
+    Если means задан, центрирует по ним
     """
     dense = matrix.data
     n, m = matrix.n, matrix.m
@@ -154,7 +156,7 @@ def center_data(matrix: Matrix, means: Optional[list] = None) -> Matrix:
 
 def covariance_matrix(matrix: Matrix) -> Matrix:
     """
-    Вычисляет матрицу ковариаций для центрированной матрицы X.
+    Вычисляет матрицу ковариаций для центрированной матрицы X
     """
     dense = matrix.data
     n, m = matrix.n, matrix.m
@@ -170,7 +172,7 @@ def covariance_matrix(matrix: Matrix) -> Matrix:
 
 def find_eigenvalues(C: Matrix, tol: float = 1e-6) -> List[float]:
     """
-    Находит собственные значения матрицы методом бисекции.
+    Находит собственные значения матрицы методом бисекции
     """
     if C.n != C.m:
         raise ValueError("Матрица должна быть квадратной")
@@ -185,7 +187,7 @@ def find_eigenvalues(C: Matrix, tol: float = 1e-6) -> List[float]:
 
 def find_eigenvectors(C: Matrix, eigenvalues: List[float]) -> List[Matrix]:
     """
-    Находит собственные векторы матрицы C для заданных собственных значений.
+    Находит собственные векторы матрицы C для заданных собственных значений
     """
     if C.n != C.m:
         raise ValueError("Матрица должна быть квадратной")
@@ -203,7 +205,7 @@ def find_eigenvectors(C: Matrix, eigenvalues: List[float]) -> List[Matrix]:
 
 def handle_missing_values(X: 'Matrix') -> 'Matrix':
     """
-    Заполняет пропущенные значения средними по столбцу.
+    Заполняет пропущенные значения средними по столбцу
     """
     n, m = X.n, X.m
     means = []
@@ -226,7 +228,7 @@ def handle_missing_values(X: 'Matrix') -> 'Matrix':
 
 def explained_variance_ratio(eigenvalues: List[float], k: int) -> float:
     """
-    Вычисляет долю объяснённой дисперсии.
+    Вычисляет долю объяснённой дисперсии
     """
     m = len(eigenvalues)
     ArrayType = ctypes.c_double * m
@@ -236,7 +238,7 @@ def explained_variance_ratio(eigenvalues: List[float], k: int) -> float:
 
 def auto_select_k(eigenvalues: list[float], threshold: float = 0.95) -> int:
     """
-    Автоматический выбор числа главных компонент по порогу объяснённой дисперсии.
+    Автоматический выбор числа главных компонент по порогу объяснённой дисперсии
     """
     total = sum(eigenvalues)
     explained = 0.0
@@ -249,7 +251,7 @@ def auto_select_k(eigenvalues: list[float], threshold: float = 0.95) -> int:
 
 def pca(X: 'Matrix', k: Optional[int] = None, threshold: float = 0.95):
     """
-    Реализует алгоритм PCA. Если k=None, выбирает оптимальное k по порогу explained variance.
+    Реализует алгоритм PCA. Если k=None, выбирает оптимальное k по порогу explained variance
     Возвращает (X_proj, gamma, k_used, Vk, means), где:
       - X_proj: проекция X на k компонент
       - gamma: доля объяснённой дисперсии
@@ -391,7 +393,7 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
 
 def reconstruction_error(X_orig: 'Matrix', X_recon: 'Matrix') -> float:
     """
-    Вычисляет среднеквадратическую ошибку восстановления данных.
+    Вычисляет среднеквадратическую ошибку восстановления данных
     """
     if X_orig.n != X_recon.n or X_orig.m != X_recon.m:
         raise ValueError("Размеры матриц должны совпадать")
@@ -407,7 +409,7 @@ def reconstruction_error(X_orig: 'Matrix', X_recon: 'Matrix') -> float:
 
 def reconstruct_from_pca(X_proj: Matrix, X: Matrix, k: int) -> Matrix:
     """
-    Восстанавливает данные из проекции PCA.
+    Восстанавливает данные из проекции PCA
     """
     X_centered = center_data(X)
     n, m = X.n, X.m
@@ -429,8 +431,8 @@ def reconstruct_from_pca(X_proj: Matrix, X: Matrix, k: int) -> Matrix:
 
 def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1, k: int = None, threshold: float = 0.95):
     """
-    Добавляет шум к данным и сравнивает результаты PCA до и после.
-    Если k=None, используется auto_select_k.
+    Добавляет шум к данным и сравнивает результаты PCA до и после
+    Если k=None, используется auto_select_k
     """
     n, m = X.n, X.m
     means = []

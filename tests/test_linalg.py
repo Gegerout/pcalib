@@ -4,6 +4,7 @@ from pcalib.py.algorithms import Matrix, gauss_solver, center_data, covariance_m
 
 
 class TestLinalg(unittest.TestCase):
+    # Проверяет решение СЛАУ методом Гаусса
     def test_gauss_solver(self):
         A = Matrix([[2, 1], [1, 3]])
         b = [5, 10]
@@ -12,6 +13,7 @@ class TestLinalg(unittest.TestCase):
         self.assertAlmostEqual(x[0], 1.0, places=5)
         self.assertAlmostEqual(x[1], 3.0, places=5)
 
+    # Проверяет корректность центрирования матрицы
     def test_center_data(self):
         X = Matrix([[1, 2], [3, 4]])
         Xc = center_data(X)
@@ -21,6 +23,7 @@ class TestLinalg(unittest.TestCase):
         self.assertAlmostEqual(Xc.data[1][0], 1.0)
         self.assertAlmostEqual(Xc.data[1][1], 1.0)
 
+    # Проверяет вычисление матрицы ковариаций
     def test_covariance_matrix(self):
         X = Matrix([[1, 2], [3, 4]])
         Xc = center_data(X)
@@ -31,6 +34,7 @@ class TestLinalg(unittest.TestCase):
         self.assertAlmostEqual(C.data[1][0], 2.0)
         self.assertAlmostEqual(C.data[1][1], 2.0)
 
+    # Проверяет поиск собственных значений и векторов
     def test_find_eigenvalues_and_vectors(self):
         C = Matrix([[2, 0], [0, 1]])
         eigenvalues = find_eigenvalues(C)

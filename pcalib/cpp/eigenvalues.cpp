@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <cstdlib>
 
-// Подсчёт числа собственных значений < x через полное LDL^T-разложение
+// Возвращает количество собственных значений матрицы C, меньших x, через разложение LDL^T
 int sturm_count_full(const std::vector<std::vector<double> > &C, double x, double eps = 1e-12) {
     int n = C.size();
     std::vector<std::vector<double> > L(n, std::vector<double>(n, 0.0));
@@ -31,6 +31,7 @@ int sturm_count_full(const std::vector<std::vector<double> > &C, double x, doubl
     return cnt;
 }
 
+// Рекурсивно делит отрезок и ищет собственные значения методом бисекции
 void bisect_interval(const std::vector<std::vector<double> > &C,
                      double a, double b,
                      int cnt_a, int cnt_b,
@@ -49,6 +50,7 @@ void bisect_interval(const std::vector<std::vector<double> > &C,
     bisect_interval(C, m, b, cnt_m, cnt_b, tol, out);
 }
 
+// Находит все собственные значения симметричной матрицы C методом бисекции и разложения LDL^T
 std::vector<double> find_eigenvalues(const std::vector<std::vector<double> > &C, double tol) {
     int n = C.size();
     if (n == 0 || C[0].size() != static_cast<size_t>(n))

@@ -6,13 +6,13 @@ extern "C" {
 #endif
 
 /**
- * Центрирует матрицу данных X (n x m) по каждому столбцу.
- * Если means == nullptr, вычисляет средние по X.
- * Если means != nullptr, использует их для центрирования.
- * На выходе X_centered[i * m + j] = X[i * m + j] - means[j].
+ * Центрирует матрицу данных X (n x m) по каждому столбцу
+ * Если means == nullptr, вычисляет средние по X
+ * Если means != nullptr, использует их для центрирования
+ * На выходе X_centered[i * m + j] = X[i * m + j] - means[j]
  *
- * @param X           Входная матрица (размер n x m, row-major)
- * @param X_centered  Выходная матрица (размер n x m, row-major)
+ * @param X           Входная матрица
+ * @param X_centered  Выходная матрица
  * @param n           Количество строк
  * @param m           Количество столбцов
  * @param means       Массив средних (размер m) или nullptr
