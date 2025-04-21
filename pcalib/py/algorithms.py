@@ -3,7 +3,7 @@ import math
 import ctypes
 import platform
 import random
-from typing import List, Tuple, Optional
+from typing import List, Optional
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -34,7 +34,8 @@ pca_lib.center_data.argtypes = [
     ctypes.POINTER(ctypes.c_double),
     ctypes.POINTER(ctypes.c_double),
     ctypes.c_int,
-    ctypes.c_int
+    ctypes.c_int,
+    ctypes.POINTER(ctypes.c_double)
 ]
 pca_lib.center_data.restype = None
 
@@ -75,9 +76,10 @@ pca_lib.project_data.argtypes = [
     ctypes.POINTER(ctypes.c_double),  # X_proj
     ctypes.c_int,  # n
     ctypes.c_int,  # m
-    ctypes.c_int   # k
+    ctypes.c_int  # k
 ]
 pca_lib.project_data.restype = None
+
 
 def project_data_py(X: Matrix, Vk: Matrix) -> Matrix:
     """
@@ -97,10 +99,6 @@ def project_data_py(X: Matrix, Vk: Matrix) -> Matrix:
     pca_lib.project_data(X_ctypes, Vk_ctypes, X_proj_ctypes, n, m, k)
     result = [[X_proj_ctypes[i * k + j] for j in range(k)] for i in range(n)]
     return Matrix(result)
-
-def accuracy_score_manual(y_true, y_pred):
-    correct = sum(yt == yp for yt, yp in zip(y_true, y_pred))
-    return correct / len(y_true)
 
 
 def mean_by_column(X: Matrix) -> List[float]:
@@ -131,9 +129,11 @@ def gauss_solver(matrix: Matrix, b: List[float], ndigits: int = 6) -> List[float
     return rounded_solution
 
 
-def center_data(matrix: Matrix) -> Matrix:
+def center_data(matrix: Matrix, means: Optional[list] = None) -> Matrix:
     """
     Центрирует данные матрицы с использованием C++ функции.
+    Если means=None, центрирует по средним самой матрицы.
+    Если means задан, центрирует по ним.
     """
     dense = matrix.data
     n, m = matrix.n, matrix.m
@@ -141,7 +141,13 @@ def center_data(matrix: Matrix) -> Matrix:
     ArrayXType = ctypes.c_double * (n * m)
     X_ctypes = ArrayXType(*flat_X)
     X_centered = ArrayXType()
-    pca_lib.center_data(X_ctypes, X_centered, n, m)
+    if means is not None:
+        ArrayMeansType = ctypes.c_double * m
+        means_ctypes = ArrayMeansType(*means)
+        means_ptr = means_ctypes
+    else:
+        means_ptr = None
+    pca_lib.center_data(X_ctypes, X_centered, n, m, means_ptr)
     result = [[X_centered[i * m + j] for j in range(m)] for i in range(n)]
     return Matrix(result)
 
@@ -241,13 +247,22 @@ def auto_select_k(eigenvalues: list[float], threshold: float = 0.95) -> int:
     return len(eigenvalues)
 
 
-def pca(X: 'Matrix', k: Optional[int] = None, threshold: float = 0.95) -> Tuple['Matrix', float, int]:
+def pca(X: 'Matrix', k: Optional[int] = None, threshold: float = 0.95):
     """
     Реализует алгоритм PCA. Если k=None, выбирает оптимальное k по порогу explained variance.
-    Возвращает (X_proj, gamma, k_used)
+    Возвращает (X_proj, gamma, k_used, Vk, means), где:
+      - X_proj: проекция X на k компонент
+      - gamma: доля объяснённой дисперсии
+      - k_used: выбранное число компонент
+      - Vk: матрица главных компонент (m x k)
+      - means: средние по столбцам исходной матрицы X
     """
     n, m = X.n, X.m
-    X_centered = center_data(X)
+    # Вычисляем средние по столбцам
+    means = [sum(X.data[i][j] for i in range(n)) / n for j in range(m)]
+    # Центрируем X по этим средним
+    X_centered_data = [[X.data[i][j] - means[j] for j in range(m)] for i in range(n)]
+    X_centered = type(X)(X_centered_data)
     C = covariance_matrix(X_centered)
     eigenvalues = find_eigenvalues(C)
     if k is None:
@@ -259,7 +274,7 @@ def pca(X: 'Matrix', k: Optional[int] = None, threshold: float = 0.95) -> Tuple[
     Vk = type(X)([list(col) for col in zip(*Vk_data)])
     X_proj = project_data_py(X_centered, Vk)
     gamma = explained_variance_ratio(eigenvalues, k_used)
-    return X_proj, gamma, k_used
+    return X_proj, gamma, k_used, Vk, means
 
 
 def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) -> Figure:
@@ -336,13 +351,13 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
     else:
         # k > 2: pairwise scatter plot средствами только matplotlib
         max_dim = min(k, 5)
-        fig, axes = plt.subplots(max_dim, max_dim, figsize=(2.5*max_dim, 2.5*max_dim))
+        fig, axes = plt.subplots(max_dim, max_dim, figsize=(2.5 * max_dim, 2.5 * max_dim))
         # data: n x k, хотим брать data[:, j] и data[:, i]
         for i in range(max_dim):
             for j in range(max_dim):
                 ax = axes[i, j]
                 if i == j:
-                    ax.text(0.5, 0.5, f'PC{i+1}', fontsize=10, ha='center', va='center')
+                    ax.text(0.5, 0.5, f'PC{i + 1}', fontsize=10, ha='center', va='center')
                     ax.set_xticks([])
                     ax.set_yticks([])
                 else:
@@ -353,17 +368,18 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
                     else:
                         ax.scatter(x, y_, c='blue', edgecolor='k', s=10, alpha=0.8)
                     if i == max_dim - 1:
-                        ax.set_xlabel(f'PC{j+1}')
+                        ax.set_xlabel(f'PC{j + 1}')
                     else:
                         ax.set_xticks([])
                     if j == 0:
-                        ax.set_ylabel(f'PC{i+1}')
+                        ax.set_ylabel(f'PC{i + 1}')
                     else:
                         ax.set_yticks([])
         if y is not None and class_names is not None:
             unique = sorted(set(y))
             colors = [plt.cm.viridis(i / max(1, len(unique) - 1)) for i in range(len(unique))]
-            handles = [mpatches.Patch(color=colors[i], label=str(class_names[cl] if cl < len(class_names) else cl)) for i, cl in enumerate(unique)]
+            handles = [mpatches.Patch(color=colors[i], label=str(class_names[cl] if cl < len(class_names) else cl)) for
+                       i, cl in enumerate(unique)]
             fig.legend(handles=handles, title="Класс", bbox_to_anchor=(1.05, 1), loc='upper left')
         if title is not None:
             fig.suptitle(title, y=1.02)
@@ -399,8 +415,8 @@ def reconstruct_from_pca(X_proj: Matrix, X: Matrix, k: int) -> Matrix:
     eigenvalues = find_eigenvalues(C)
     eigenvectors = find_eigenvectors(C, eigenvalues)
     Vk_data = [[eigenvectors[j].data[i][0] for i in range(m)] for j in range(k)]
-    Vk = Matrix([list(col) for col in zip(*Vk_data)]) 
-    Vk_T = Matrix([list(row) for row in zip(*Vk.data)]) 
+    Vk = Matrix([list(col) for col in zip(*Vk_data)])
+    Vk_T = Matrix([list(row) for row in zip(*Vk.data)])
     X_recon_centered = project_data_py(X_proj, Vk_T)
     means = mean_by_column(X)
     X_recon_data = []
@@ -433,11 +449,11 @@ def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1, k: int = None, 
             row.append(X.data[i][j] + noise)
         X_noisy_data.append(row)
     X_noisy = type(X)(X_noisy_data)
-    X_proj, gamma, k_used = pca(X, k=k, threshold=threshold)
-    X_proj_noisy, gamma_noisy, _ = pca(X_noisy, k=k_used, threshold=threshold)
+    X_proj, gamma, k_used, _, _ = pca(X, k=k, threshold=threshold)
+    X_proj_noisy, gamma_noisy, _, _, _ = pca(X_noisy, k=k_used, threshold=threshold)
     fig1 = plot_pca_projection(X_proj)
     fig2 = plot_pca_projection(X_proj_noisy)
-    
+
     return {
         'X_proj': X_proj,
         'gamma': gamma,
@@ -447,59 +463,3 @@ def add_noise_and_compare(X: 'Matrix', noise_level: float = 0.1, k: int = None, 
         'fig_after': fig2,
         'k_used': k_used
     }
-
-
-def apply_pca_and_visualize(X, y, class_names, k=None, fig_path=None, title=None, threshold: float = 0.95):
-    """
-    Применяет PCA к данным, строит график и возвращает проекцию и точность классификации.
-    Если k=None, используется auto_select_k.
-    """
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    X_train_mat = Matrix([list(row) for row in X_train])
-    X_test_mat = Matrix([list(row) for row in X_test])
-
-    # PCA по train
-    X_train_centered = center_data(X_train_mat)
-    C = covariance_matrix(X_train_centered)
-    eigenvalues = find_eigenvalues(C)
-    if k is None:
-        k_used = auto_select_k(eigenvalues, threshold=threshold)
-    else:
-        k_used = k
-    eigenvectors = find_eigenvectors(C, eigenvalues)
-    Vk_data = [[eigenvectors[j].data[i][0] for i in range(C.m)] for j in range(k_used)]
-    Vk = Matrix([list(col) for col in zip(*Vk_data)])  # m x k
-
-    # Центрируем test по средним train
-    means = mean_by_column(X_train_mat)
-    X_test_centered_data = [[X_test_mat.data[i][j] - means[j] for j in range(X_test_mat.m)] for i in range(X_test_mat.n)]
-    X_test_centered = Matrix(X_test_centered_data)
-
-    # Проекция
-    X_train_proj = project_data_py(X_train_centered, Vk)
-    X_test_proj = project_data_py(X_test_centered, Vk)
-
-    # Классификация KNN вручную
-    def knn_predict(X_train, y_train, X_test, k_neighbors=3):
-        def euclidean(a, b):
-            return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
-        preds = []
-        for test_vec in X_test:
-            dists = [(euclidean(test_vec, train_vec), y) for train_vec, y in zip(X_train, y_train)]
-            dists.sort()
-            top_k = [y for _, y in dists[:k_neighbors]]
-            preds.append(max(set(top_k), key=top_k.count))
-        return preds
-
-    y_pred_pca = knn_predict(X_train_proj.data, y_train, X_test_proj.data)
-    acc_pca = sum(yt == yp for yt, yp in zip(y_test, y_pred_pca)) / len(y_test)
-
-    # Визуализация по всему X (а не только по test!)
-    X_full_mat = Matrix([list(row) for row in X])
-    X_full_proj, _, _ = pca(X_full_mat, k=k_used, threshold=threshold)
-    fig = plot_pca_projection(X_full_proj, y=y, class_names=class_names, title=title)
-    if fig_path is not None:
-        fig.savefig(fig_path)
-
-    return X_full_proj, acc_pca, k_used

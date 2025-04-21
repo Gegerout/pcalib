@@ -7,15 +7,17 @@ extern "C" {
 
 /**
  * Центрирует матрицу данных X (n x m) по каждому столбцу.
- * На выходе X_centered[i * m + j] = X[i * m + j] - mean_j,
- * где mean_j — среднее по j-му столбцу.
+ * Если means == nullptr, вычисляет средние по X.
+ * Если means != nullptr, использует их для центрирования.
+ * На выходе X_centered[i * m + j] = X[i * m + j] - means[j].
  *
  * @param X           Входная матрица (размер n x m, row-major)
  * @param X_centered  Выходная матрица (размер n x m, row-major)
  * @param n           Количество строк
  * @param m           Количество столбцов
+ * @param means       Массив средних (размер m) или nullptr
  */
-void center_data(const double *X, double *X_centered, int n, int m);
+void center_data(const double *X, double *X_centered, int n, int m, const double *means);
 
 #ifdef __cplusplus
 }

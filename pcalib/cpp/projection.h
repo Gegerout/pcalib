@@ -5,7 +5,17 @@
 extern "C" {
 #endif
 
-// Проецирует матрицу X (n x m) на Vk (m x k), результат X_proj (n x k)
+/**
+ * Проецирует матрицу X (n x m) на матрицу главных компонент Vk (m x k).
+ * На выходе X_proj[i * k + j] = sum_l X[i * m + l] * Vk[l * k + j]
+ *
+ * @param X        Входная матрица (размер n x m, row-major)
+ * @param Vk       Матрица главных компонент (размер m x k, row-major)
+ * @param X_proj   Выходная матрица (размер n x k, row-major)
+ * @param n        Количество строк во входной матрице X
+ * @param m        Количество столбцов во входной матрице X (и строк в Vk)
+ * @param k        Количество главных компонент (столбцов в Vk)
+ */
 void project_data(const double *X, const double *Vk, double *X_proj, int n, int m, int k);
 
 #ifdef __cplusplus

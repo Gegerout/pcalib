@@ -2,8 +2,6 @@
 #define EIGENVALUES_H
 
 #include <vector>
-#include <utility>
-#include <stdexcept>
 
 namespace Eigenvalues {
     /**
