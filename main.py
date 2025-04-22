@@ -6,14 +6,14 @@ results = {}
 
 
 def input_matrix(name="матрица"):
-    print(f"Введите размеры {name} (через пробел): n m")
-    n, m = map(int, input().split())
-    print(f"Введите {n} строк по {m} чисел через пробел:")
+    print(f"Введите размер {name}: n")
+    n = int(input())
+    print(f"Введите {n} строк по {n} чисел через пробел:")
     data = []
     for i in range(n):
         row = list(map(float, input().split()))
-        if len(row) != m:
-            print(f"Ошибка: ожидалось {m} чисел!")
+        if len(row) != n:
+            print(f"Ошибка: ожидалось {n} чисел!")
             return None
         data.append(row)
     return Matrix(data)
