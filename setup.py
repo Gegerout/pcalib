@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pcalib",
-    version="0.1.3",
+    version="0.1.4",
     description="PCA and linear algebra library with C++ backend",
     author="Selim Poladov",
     author_email="main@netherite.ru",

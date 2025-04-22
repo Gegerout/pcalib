@@ -288,39 +288,10 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
     """
     k = X_proj.m
     n = X_proj.n
-    data = X_proj.data  # data: list of lists, shape n x k
+    data = X_proj.data
     if k < 1:
         raise ValueError("Для визуализации требуется хотя бы одна компонента (n x k, k >= 1)")
-    if k == 1:
-        fig, ax = plt.subplots(figsize=(7, 2))
-        x = [row[0] for row in data]
-        y_zeros = [0 for _ in range(n)]
-        if y is not None:
-            scatter = ax.scatter(x, y_zeros, c=y, cmap='viridis', edgecolor='k', s=50, alpha=0.8)
-            if class_names is not None:
-                handles = []
-                unique = sorted(set(y))
-                for i, cl in enumerate(unique):
-                    handles.append(
-                        plt.Line2D([], [], marker='o', color='w',
-                                   markerfacecolor=plt.cm.viridis(i / max(1, len(unique) - 1)),
-                                   markeredgecolor='k', markersize=8,
-                                   label=str(class_names[cl] if cl < len(class_names) else cl))
-                    )
-                ax.legend(handles=handles, title="Класс")
-            else:
-                fig.colorbar(scatter, ax=ax, label='Class')
-        else:
-            ax.scatter(x, y_zeros, c='blue', edgecolor='k', s=50, alpha=0.8)
-        ax.set_xlabel('PC1')
-        ax.set_yticks([])
-        if title is not None:
-            ax.set_title(title)
-        else:
-            ax.set_title('PCA Projection onto First Component')
-        ax.grid(True)
-        return fig
-    elif k == 2:
+    if k == 2:
         fig, ax = plt.subplots(figsize=(7, 5))
         x = [row[0] for row in data]
         y2 = [row[1] for row in data]
@@ -349,45 +320,6 @@ def plot_pca_projection(X_proj: 'Matrix', y=None, class_names=None, title=None) 
         else:
             ax.set_title('PCA Projection onto First Two Components')
         ax.grid(True)
-        return fig
-    else:
-        # k > 2: pairwise scatter plot средствами только matplotlib
-        max_dim = min(k, 5)
-        fig, axes = plt.subplots(max_dim, max_dim, figsize=(2.5 * max_dim, 2.5 * max_dim))
-        # data: n x k, хотим брать data[:, j] и data[:, i]
-        for i in range(max_dim):
-            for j in range(max_dim):
-                ax = axes[i, j]
-                if i == j:
-                    ax.text(0.5, 0.5, f'PC{i + 1}', fontsize=10, ha='center', va='center')
-                    ax.set_xticks([])
-                    ax.set_yticks([])
-                else:
-                    x = [row[j] for row in data]
-                    y_ = [row[i] for row in data]
-                    if y is not None:
-                        scatter = ax.scatter(x, y_, c=y, cmap='viridis', edgecolor='k', s=10, alpha=0.8)
-                    else:
-                        ax.scatter(x, y_, c='blue', edgecolor='k', s=10, alpha=0.8)
-                    if i == max_dim - 1:
-                        ax.set_xlabel(f'PC{j + 1}')
-                    else:
-                        ax.set_xticks([])
-                    if j == 0:
-                        ax.set_ylabel(f'PC{i + 1}')
-                    else:
-                        ax.set_yticks([])
-        if y is not None and class_names is not None:
-            unique = sorted(set(y))
-            colors = [plt.cm.viridis(i / max(1, len(unique) - 1)) for i in range(len(unique))]
-            handles = [mpatches.Patch(color=colors[i], label=str(class_names[cl] if cl < len(class_names) else cl)) for
-                       i, cl in enumerate(unique)]
-            fig.legend(handles=handles, title="Класс", bbox_to_anchor=(1.05, 1), loc='upper left')
-        if title is not None:
-            fig.suptitle(title, y=1.02)
-        else:
-            fig.suptitle(f'PCA Pairplot (первые {max_dim} компонент)', y=1.02)
-        plt.tight_layout()
         return fig
 
 

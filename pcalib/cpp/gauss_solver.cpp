@@ -1,4 +1,3 @@
-#include <cmath>
 #include "gauss_solver.h"
 #include "matrix_ops.h"
 #include <vector>
@@ -17,9 +16,6 @@ int gauss_solver(const double *A_in, const double *b_in, double *x, int n) {
     }
 
     for (int k = 0; k < n; k++) {
-        if (std::fabs(A[k][k]) < 1e-12) {
-            return -1;
-        }
         double pivot = A[k][k];
         MatrixOps::scaleRow(A, k, 1.0 / pivot);
         b[k] /= pivot;
